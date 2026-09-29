@@ -137,6 +137,12 @@
     the yt-dlp + FFmpeg workflow. <button class="link-btn" id="mobileNoteX">Dismiss</button>
   </div>
 
+  <div class="card online-mode-panel" id="onlineModePanel" hidden>
+    <div class="online-mode-title"><span class="online-dot"></span> ONLINE MODE</div>
+    <p>This mode works without installing the desktop engine. The website uses a lightweight serverless resolver to obtain public media URLs, then your browser downloads the file.</p>
+    <p class="fine">Free-provider quotas and browser download permissions apply.</p>
+  </div>
+
   <!-- Not connected panel -->
   <div class="card warn-panel" id="notConnected" hidden>
     <h3>LOCAL DOWNLOADER REQUIRED</h3>
@@ -172,7 +178,7 @@
           <button class="btn btn-ghost" id="clearBtn">Clear</button>
         </div>
       </div>
-      <p class="fine" id="submitHint">Jobs are sent to your local engine — nothing is uploaded anywhere.</p>
+      <p class="fine" id="submitHint">Online mode needs no desktop installation. Local mode keeps processing on your PC.</p>
     </div>
 
     <div class="tabs">
@@ -270,6 +276,7 @@
   <span class="muted">Your PC does the downloading. Nothing is uploaded anywhere.</span>
 </footer>
 
+<script src="online-config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -54,3 +54,11 @@ Only download videos you own or have permission to download.
  
 ### Local-first deployment
 The public site stays static on GitHub Pages. The localhost bridge performs the actual downloads and stores media on the user's computer; no central download server is required.
+
+
+## Zero-install online mode
+The project includes an optional online mode. Visitors do not need to install Python, FFmpeg, or the local bridge. The static GitHub Pages UI calls a lightweight Cloudflare Worker, which keeps the provider API key secret and returns public media URLs; the browser then downloads the returned file.
+
+The reference provider integration uses SaveAPI. Its current documentation lists a free tier with 1,000 free credits and a 10 requests/minute limit. Successful generic download resolution starts at 1.5 credits, so the free tier is for testing/small personal use and is not unlimited public capacity. See the provider documentation for current limits.
+
+The existing local bridge remains available when online mode is not configured.
