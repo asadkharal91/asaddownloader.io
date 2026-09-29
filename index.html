@@ -42,14 +42,17 @@
   <div class="hero">
     <div class="hero-inner">
       <span class="badge">100% free &nbsp;·&nbsp; no accounts &nbsp;·&nbsp; no uploads</span>
-      <h1>Download videos<br>with <span class="grad">your own PC.</span></h1>
-      <p class="lede">Asad Downloader is a website downloader with a twist: the site is just the
-        remote control. A tiny engine on <strong>your</strong> computer does the downloading —
-        so your files, your bandwidth and your privacy stay yours.</p>
-      <div class="hero-cta">
-        <a href="#" class="btn btn-primary" data-nav="downloader">Open Downloader</a>
-        <a href="#" class="btn btn-ghost" id="heroEngineBtn">Download Local Engine</a>
+      <h1>Download videos<br><span class="grad">free, online.</span></h1>
+      <p class="lede">Paste a video link below, pick a quality, and save it straight to your own PC.</p>
+      <div class="dl-box card">
+        <div class="dl-row">
+          <input id="singleUrl" type="url" placeholder="Paste a video URL here…" autocomplete="off" spellcheck="false">
+          <button id="singleGo" class="btn btn-primary">Download</button>
+        </div>
+        <div id="singleMsg" class="fine" aria-live="polite"></div>
+        <div id="singleResult"></div>
       </div>
+      <div class="sites"><span>YouTube</span><span>TikTok</span><span>Facebook</span><span>Instagram</span><span>X</span><span>+1000 more sites</span></div>
       <div class="hero-status card">
         <span class="status-pill is-off" id="heroStatus"><span class="dot"></span><span class="lbl">Checking local engine…</span></span>
         <span class="hero-status-hint" id="heroStatusHint">The site is checking whether the Asad Downloader engine is running on this computer.</span>
@@ -70,7 +73,7 @@
     <div class="cards">
       <div class="card"><h3>Bulk queue</h3><p>Paste up to 100 URLs, one per line. The engine downloads up to 8 at a time and lines up the rest automatically.</p></div>
       <div class="card"><h3>Live dashboard</h3><p>Real-time progress bars, download speed, ETA, file sizes and per-video status — no page reloads.</p></div>
-      <div class="card"><h3>Quality control</h3><p>Best quality, 1080p, 720p, 480p — or audio-only MP3 extraction with FFmpeg.</p></div>
+      <div class="card"><h3>Quality control</h3><p>Best quality, 4K, 1080p, 720p, 480p, 360p — or audio-only MP3 extraction with FFmpeg.</p></div>
       <div class="card"><h3>Smart retries</h3><p>Temporary failures and rate limits are retried automatically with exponential backoff. You just watch.</p></div>
       <div class="card"><h3>Private by design</h3><p>Downloads, cookies and files never leave your computer. The website collects nothing.</p></div>
       <div class="card"><h3>History &amp; files</h3><p>Every completed, failed or cancelled job is logged with one-click file access and folder opening.</p></div>
@@ -97,11 +100,11 @@
     <div class="dl-card card">
       <div>
         <h3>Asad Downloader Bridge <span class="ver">v1.0.0</span></h3>
-        <p>Windows 10/11 · Python or standalone EXE<br>
+        <p>Windows 10/11 · standalone EXE — just double-click, no Python needed<br>
            Runs only on <code>127.0.0.1</code> — unreachable from the network.</p>
       </div>
       <div class="dl-actions">
-        <a href="#" class="btn btn-primary" id="dlEngineBtn">Download Local Engine</a>
+        <a href="#" class="btn btn-primary engine-dl">Download Local Engine</a>
         <a href="https://github.com/asadkharal91/asaddownloader.io" target="_blank" rel="noopener" class="btn btn-ghost">Source on GitHub</a>
       </div>
     </div>
@@ -153,7 +156,7 @@
           <p>This website is only the control panel. The actual downloading is done by the
           <strong>Asad Downloader Bridge</strong> — a small free program that runs on your own computer.</p>
           <div class="row gap">
-            <a id="dlEngineBtn" class="btn primary">Download Local Engine</a>
+            <a href="#" class="btn primary engine-dl">Download Local Engine</a>
             <button id="checkAgainBtn" class="btn ghost">Check Again</button>
           </div>
           <p class="fine">Runs on your PC only. No account, no uploads, nothing leaves your computer.</p>
@@ -223,9 +226,11 @@
             <label>Quality
               <select id="setQuality">
                 <option value="best">Best available</option>
+                <option value="2160p">4K (2160p)</option>
                 <option value="1080p">1080p</option>
                 <option value="720p">720p</option>
                 <option value="480p">480p</option>
+                <option value="360p">360p</option>
               </select>
             </label>
             <label>Parallel downloads: <strong id="workersVal">3</strong>

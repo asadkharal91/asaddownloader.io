@@ -95,7 +95,7 @@ log = logging.getLogger("bridge")
 
 DEFAULT_CONFIG = {
     "mode": "video",              # "video" | "audio"
-    "quality": "best",            # "best" | "1080p" | "720p" | "480p"
+    "quality": "best",            # "best" | "2160p" | "1080p" | "720p" | "480p" | "360p"
     "audio_format": "mp3",        # for audio mode
     "workers": 3,                 # 1..8
     "download_dir": "",           # "" => ~/Downloads/Asad Downloader
@@ -133,7 +133,7 @@ def load_config() -> dict:
         cfg["workers"] = max(1, min(8, int(cfg.get("workers", 3))))
     except Exception:
         cfg["workers"] = 3
-    if cfg.get("quality") not in ("best", "1080p", "720p", "480p"):
+    if cfg.get("quality") not in ("best", "2160p", "1080p", "720p", "480p", "360p"):
         cfg["quality"] = "best"
     if cfg.get("mode") not in ("video", "audio"):
         cfg["mode"] = "video"
@@ -356,12 +356,10 @@ def build_ydl_opts(job: dict, download_dir: str) -> dict:
         }]
     else:
         q = cfg.get("quality", "best")
-        if q == "1080p":
-            fmt = "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best"
-        elif q == "720p":
-            fmt = "bestvideo[height<=720]+bestaudio/best[height<=720]/best"
-        elif q == "480p":
-            fmt = "bestvideo[height<=480]+bestaudio/best[height<=480]/best"
+        m = re.match(r"^(\d+)p$", q or "")
+        if m:
+            h = m.group(1)
+            fmt = f"bestvideo[height<={h}]+bestaudio/best[height<={h}]/best"
         else:
             fmt = "bestvideo+bestaudio/best"
         postprocessors = [{"key": "FFmpegVideoConvertor", "preferedformat": "mp4"}] \
@@ -649,6 +647,52 @@ def _finish_job(job_id: str, status: str, short="", detail=""):
     log.info("Job %s -> %s (%s)", job_id[:8], status, short or snap.get("title"))
 
 
+def probe_video(url: str) -> dict:
+    """Fetch a video's metadata (title, thumbnail, duration) without
+    downloading anything. Used by the website's single-link flow so it can
+    show a preview card before the user picks a quality. Raises on failure.
+    """
+    ydl_opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "noplaylist": True,
+        "socket_timeout": 20,
+    }
+    if CONFIG.get("use_browser_cookies"):
+        # Local-only: cookies never leave this machine.
+        ydl_opts["cookiesfrombrowser"] = (CONFIG.get("browser", "chrome"),)
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False)
+    if not info:
+        raise RuntimeError("Could not read video information.")
+    thumbs = info.get("thumbnails") or []
+    thumb_url = ""
+    if thumbs:
+        best = max(thumbs, key=lambda t: (t.get("width") or 0))
+        thumb_url = best.get("url") or ""
+    duration = info.get("duration")
+    return {
+        "title": info.get("title") or "Unknown title",
+        "uploader": info.get("uploader") or info.get("channel") or "",
+        "duration": duration,
+        "duration_str": _fmt_duration(duration),
+        "thumbnail": thumb_url,
+        "webpage_url": info.get("webpage_url") or url,
+    }
+
+
+def _fmt_duration(sec) -> str:
+    if sec is None:
+        return ""
+    try:
+        sec = int(sec)
+    except (TypeError, ValueError):
+        return ""
+    h, rem = divmod(sec, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
 def create_jobs(urls: list[str]) -> list[dict]:
     created = []
     for raw in urls:
@@ -848,6 +892,21 @@ class BridgeHandler(BaseHTTPRequestHandler):
                         detail="Cancelled by user.")
             self._json({"job": job_public(jobs[job_id])})
             return
+        if path == "/api/probe":
+            data = self._read_json()
+            url = (data.get("url") or "").strip()
+            p = urlparse(url)
+            if p.scheme not in ("http", "https") or not p.hostname:
+                self._json({"error": "That doesn't look like a valid video URL."}, 400)
+                return
+            try:
+                meta = probe_video(url)
+            except Exception as e:  # noqa: BLE001 - surfaced as friendly error
+                short, _detail, _retry = classify_error(e)
+                self._json({"error": short}, 422)
+                return
+            self._json({"video": meta})
+            return
         if path == "/api/open-folder":
             target = CONFIG.get("download_dir") or default_download_dir()
             try:
@@ -911,7 +970,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
         allowed = {}
         if opts.get("mode") in ("video", "audio"):
             allowed["mode"] = opts["mode"]
-        if opts.get("quality") in ("best", "1080p", "720p", "480p"):
+        if opts.get("quality") in ("best", "2160p", "1080p", "720p", "480p", "360p"):
             allowed["quality"] = opts["quality"]
         if allowed:
             CONFIG.update(allowed)

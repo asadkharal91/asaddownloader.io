@@ -380,3 +380,23 @@ footer strong { color: var(--green-bright); letter-spacing: 1px; }
   .side-foot{flex-direction:row;align-items:center;justify-content:space-between}
   .app-main{padding-left:0;margin-top:16px}
 }
+
+/* ============ Greenhole-style single downloader (home hero) ============ */
+.dl-box{max-width:660px;margin:26px auto 0;text-align:left}
+.dl-row{display:flex;gap:10px}
+.dl-row input{flex:1;background:#0d1117;border:1px solid var(--line);border-radius:10px;padding:14px 16px;color:var(--text);font-size:15px;min-width:0}
+.dl-row input:focus{outline:none;border-color:var(--green)}
+#singleMsg{margin-top:10px;min-height:18px}
+.sites{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+.sites span{font-size:12px;color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:5px 12px}
+.video-card{display:flex;gap:16px;margin-top:16px;background:#0d1117;border:1px solid var(--line);border-radius:12px;padding:16px;text-align:left}
+.video-card img{width:168px;height:94px;object-fit:cover;border-radius:8px;background:#000;flex-shrink:0}
+.video-card .vc-body{flex:1;min-width:0}
+.video-card h4{margin:0 0 4px;font-size:15px}
+.video-card .vc-meta{color:var(--muted);font-size:12.5px;margin-bottom:10px}
+.qbtns{display:flex;gap:8px;flex-wrap:wrap}
+.qbtn{background:#161b24;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer}
+.qbtn:hover{border-color:var(--green);color:var(--green)}
+.qbtn.mp3{border-color:rgba(0,229,114,.4);color:var(--green)}
+.vc-progress{margin-top:12px}
+@media(max-width:560px){.video-card{flex-direction:column}.video-card img{width:100%;height:auto}.dl-row{flex-direction:column}}

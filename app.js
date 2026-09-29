@@ -134,11 +134,13 @@ try {
   if (saved === "light" || saved === "dark") applyTheme(saved);
 } catch (e) {}
 
-/* engine download buttons */
-["dlEngineBtn", "dlEngineBtn2"].forEach((id) => {
-  const el = $(id);
-  if (el) { el.href = BRIDGE_DOWNLOAD_URL; el.target = "_blank"; el.rel = "noopener"; }
-});
+/* engine download buttons (class-based; works for dynamically added ones too) */
+function wireEngineDls() {
+  document.querySelectorAll(".engine-dl").forEach((el) => {
+    el.href = BRIDGE_DOWNLOAD_URL; el.target = "_blank"; el.rel = "noopener";
+  });
+}
+wireEngineDls();
 
 /* ---------------- connection status ---------------- */
 function renderConnection() {
@@ -385,6 +387,7 @@ function renderAll() {
   $("stQueued").textContent = qu + pending.length;
   $("stDone").textContent = c;
   $("stFailed").textContent = f;
+  renderSingleProgress();
 }
 
 async function refreshJobs() {
@@ -488,6 +491,113 @@ $("saveSettingsBtn").addEventListener("click", async () => {
     toast("Save failed: " + e.message, true);
   }
 });
+
+/* ---------------- single-link flow (home hero, greenhole-style) ---------------- */
+let singleJobId = null;
+let singleUrl = "";
+
+function singleMsg(t, isErr) {
+  const el = $("singleMsg");
+  el.textContent = t || "";
+  el.style.color = isErr ? "#ff6b6b" : "";
+}
+
+async function probeSingle() {
+  const url = $("singleUrl").value.trim();
+  if (!/^https?:\/\//i.test(url)) { singleMsg("Paste a valid video URL first.", true); return; }
+  if (!connected) {
+    singleMsg("");
+    $("singleResult").innerHTML =
+      '<div class="card warn-card"><h3>LOCAL DOWNLOADER REQUIRED</h3>' +
+      "<p>Run the Asad Downloader Bridge on this PC first — then paste your link again.</p>" +
+      '<p><a href="#" class="btn primary engine-dl">Download Local Engine</a></p></div>';
+    wireEngineDls();
+    return;
+  }
+  singleUrl = url; singleJobId = null;
+  singleMsg("Reading video info…");
+  $("singleResult").innerHTML = "";
+  $("singleGo").disabled = true;
+  try {
+    const d = await api("/api/probe", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: url }),
+    }, 60000);
+    singleMsg("");
+    renderVideoCard(d.video);
+  } catch (e) {
+    singleMsg("Couldn't read that link: " + e.message, true);
+  } finally {
+    $("singleGo").disabled = false;
+  }
+}
+
+$("singleGo").addEventListener("click", probeSingle);
+$("singleUrl").addEventListener("keydown", (e) => { if (e.key === "Enter") probeSingle(); });
+
+function renderVideoCard(v) {
+  const qs = ["2160p", "1080p", "720p", "480p", "360p"];
+  $("singleResult").innerHTML =
+    '<div class="video-card">' +
+    (v.thumbnail ? '<img src="' + esc(v.thumbnail) + '" alt="">' : "") +
+    '<div class="vc-body"><h4>' + esc(v.title) + "</h4>" +
+    '<div class="vc-meta">' + esc([v.uploader, v.duration_str].filter(Boolean).join(" · ")) + "</div>" +
+    '<div class="qbtns">' +
+    qs.map((q) => '<button class="qbtn" data-q="' + q + '">' + (q === "2160p" ? "4K" : q) + "</button>").join("") +
+    '<button class="qbtn mp3" data-q="audio">MP3</button>' +
+    '</div><div class="vc-progress" id="vcProg"></div></div></div>';
+}
+
+document.addEventListener("click", async (e) => {
+  const qb = e.target.closest("[data-q]");
+  if (!qb || !qb.closest("#singleResult")) return;
+  const q = qb.getAttribute("data-q");
+  qb.disabled = true;
+  const prog = $("vcProg");
+  prog.innerHTML = '<div class="pbar"><i style="width:0%"></i></div><div class="job-meta"><span>Starting…</span></div>';
+  try {
+    const d = await api("/api/jobs", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        urls: [singleUrl],
+        options: q === "audio" ? { mode: "audio", quality: "best" } : { mode: "video", quality: q },
+      }),
+    }, 15000);
+    singleJobId = (d.jobs || [])[0] && d.jobs[0].id;
+    refreshJobs();
+  } catch (err) {
+    prog.innerHTML = '<div class="job-err"><summary>Could not start: ' + esc(err.message) + "</summary></div>";
+    qb.disabled = false;
+  }
+});
+
+function renderSingleProgress() {
+  if (!singleJobId) return;
+  const box = $("vcProg");
+  if (!box) return;
+  const j = jobsCache.find((x) => x.id === singleJobId);
+  if (!j) return;
+  const pct = Math.max(0, Math.min(100, Number(j.progress) || 0));
+  if (j.status === "completed" && j.has_file) {
+    box.innerHTML = '<div class="job-meta"><span>Saved to your PC' +
+      (j.filename ? ": <b>" + esc(j.filename) + "</b>" : "") + "</span></div>" +
+      '<div class="row gap" style="margin-top:8px"><a class="mini-btn" href="' + BRIDGE_BASE + "/api/jobs/" + esc(j.id) + '/file">Get File</a>' +
+      '<button class="mini-btn" data-openfolder="1">Open Folder</button> ' +
+      '<button class="link-btn" id="singleAgain">Download another</button></div>';
+    singleJobId = null;
+    $("singleAgain").addEventListener("click", () => {
+      $("singleResult").innerHTML = ""; $("singleUrl").value = ""; $("singleUrl").focus();
+    });
+  } else if (j.status === "failed" || j.status === "cancelled") {
+    box.innerHTML = '<div class="job-err"><summary>' + esc(j.error || j.status) + "</summary></div>";
+    singleJobId = null;
+  } else {
+    box.innerHTML = '<div class="pbar"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
+      '<div class="job-meta"><span><b>' + pct.toFixed(0) + "%</b></span>" +
+      (j.speed ? "<span>" + esc(j.speed) + "</span>" : "") +
+      (j.eta != null ? "<span>ETA " + esc(fmtEta(j.eta)) + "</span>" : "") + "</div>";
+  }
+}
 
 /* ---------------- boot ---------------- */
 renderAll();
