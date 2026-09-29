@@ -164,17 +164,18 @@ except Exception as e:  # pragma: no cover
 
 
 def find_ffmpeg() -> str | None:
-    """Locate an ffmpeg binary: PATH first, then next to the bridge."""
+    """Locate FFmpeg on PATH, next to the script, or in a PyInstaller bundle."""
     found = shutil.which("ffmpeg") or shutil.which("ffmpeg.exe")
     if found:
         return found
-    for name in ("ffmpeg.exe", "ffmpeg"):
-        cand = os.path.join(BASE_DIR, name)
-        if os.path.isfile(cand):
-            return cand
-        cand = os.path.join(BASE_DIR, "bin", name)
-        if os.path.isfile(cand):
-            return cand
+
+    bundle_dir = getattr(sys, "_MEIPASS", BASE_DIR)
+    for root in (BASE_DIR, bundle_dir):
+        for name in ("ffmpeg.exe", "ffmpeg"):
+            for folder in (root, os.path.join(root, "bin")):
+                cand = os.path.join(folder, name)
+                if os.path.isfile(cand):
+                    return cand
     return None
 
 
@@ -217,8 +218,7 @@ def job_public(job: dict) -> dict:
     return {
         "id": job["id"],
         "url": job["url"],
-        "title": job.get("title") or "",
-        "status": job["status"],
+        "title": job.get("title") or "",        "status": job["status"],
         "progress": round(job.get("progress", 0.0), 1),
         "speed": job.get("speed") or "",
         "eta": job.get("eta"),
@@ -496,8 +496,7 @@ def _run_job_with_retries(job_id: str):
                         short="Cancelled", detail="Cancelled by user.")
             return
         except Exception as exc:  # noqa: BLE001 - classified below
-            short, detail, temporary = classify_error(exc)
-            log.warning("Job %s attempt %d failed (%s): %s",
+            short, detail, temporary = classify_error(exc)            log.warning("Job %s attempt %d failed (%s): %s",
                         job_id[:8], attempt, short, _redact_url(jobs[job_id]["url"]))
             if isinstance(exc, FFmpegMissingError):
                 _finish_job(job_id, "failed", short=short, detail=detail)
@@ -632,7 +631,10 @@ def _finish_job(job_id: str, status: str, short="", detail=""):
         else:
             job["error"] = short
             job["error_detail"] = detail
+        # Keep the local path only in the bridge's private history store.
+        # job_public() never exposes this field to the website.
         snap = job_public(job)
+        snap["_filepath"] = job.get("filepath", "")
     cancel_events.pop(job_id, None)
     with jobs_lock:
         history.insert(0, snap)
@@ -719,6 +721,8 @@ class BridgeHandler(BaseHTTPRequestHandler):
                          "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers",
                          "Content-Type, Authorization")
+        # Modern browsers may require this when an HTTPS page calls localhost.
+        self.send_header("Access-Control-Allow-Private-Network", "true")
         self.send_header("Access-Control-Max-Age", "600")
 
     def _json(self, obj, status=200):
@@ -757,8 +761,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
             self._json({
                 "status": "ok",
                 "service": "asad-downloader-bridge",
-                "version": VERSION,
-                "yt_dlp": YTDLP_VERSION,
+                "version": VERSION,                "yt_dlp": YTDLP_VERSION,
                 "yt_dlp_available": YTDLP_AVAILABLE,
                 "ffmpeg_available": bool(FFMPEG_PATH),
                 "download_dir": CONFIG.get("download_dir") or default_download_dir(),
@@ -771,7 +774,7 @@ class BridgeHandler(BaseHTTPRequestHandler):
                 hist = list(history)
             # merge: active jobs first, then history entries not already active
             active_ids = {j["id"] for j in active}
-            merged = active + [h for h in hist if h["id"] not in active_ids]
+            merged = active + [job_public(h) for h in hist if h["id"] not in active_ids]
             self._json({"jobs": merged})
             return
         if path == "/api/config":
@@ -912,16 +915,22 @@ class BridgeHandler(BaseHTTPRequestHandler):
         with jobs_lock:
             job = jobs.get(job_id)
             snap = next((h for h in history if h["id"] == job_id), None)
-        filepath = (job or {}).get("filepath") or (snap or {}).get("filepath")
+        filepath = (
+            (job or {}).get("filepath")
+            or (snap or {}).get("_filepath")
+            or (snap or {}).get("filepath")
+        )
         # history snapshots don't keep filepath; re-resolve from jobs/history
         if not filepath and snap:
-            with jobs_lock:
-                for h in history:
-                    if h["id"] == job_id and h.get("filename"):
-                        cand = os.path.join(
-                            CONFIG.get("download_dir") or default_download_dir(),
-                            h["filename"])
-                        if os.path.exists(cand):
+            # Legacy history entries may not contain a stored path. Search
+            # recursively so organized uploader folders are also supported.
+            wanted = (snap or {}).get("filename") or ""
+            root_dir = CONFIG.get("download_dir") or default_download_dir()
+            if wanted:
+                for root, _dirs, files in os.walk(root_dir):
+                    if wanted in files:
+                        cand = os.path.join(root, wanted)
+                        if os.path.isfile(cand):
                             filepath = cand
                             break
         if not filepath or not os.path.exists(filepath):
