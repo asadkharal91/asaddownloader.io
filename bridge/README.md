@@ -125,3 +125,7 @@ Built on [yt-dlp](https://github.com/yt-dlp/yt-dlp) (Unlicense) and
 [FFmpeg](https://ffmpeg.org/) (GPL/LGPL depending on build). Asad Downloader
 is not affiliated with TikTok, YouTube, Instagram, Meta, or any platform.
 Only download videos you own or have permission to download.
+
+ 
+### Browser/EXE reliability notes
+The bridge now sends the Private Network Access response header for HTTPS GitHub Pages → localhost requests, keeps a private local filepath in history so **Get File** can still work after a bridge restart, and searches organized download folders for legacy history records. The bundled-FFmpeg lookup also works from the PyInstaller one-file extraction directory.
