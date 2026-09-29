@@ -13,7 +13,7 @@
 <header class="nav">
   <a class="brand" href="#" data-nav="home">
     <span class="brand-mark" aria-hidden="true">
-      <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#3b82f6"/><path d="M16 7v11m0 0l-5-5m5 5l5-5M8 22h16v3H8z" stroke="#030712" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#00e676"/><path d="M16 7v11m0 0l-5-5m5 5l5-5M8 22h16v3H8z" stroke="#071007" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </span>
     <span class="brand-text">ASAD <em>DOWNLOADER</em></span>
   </a>
@@ -39,83 +39,29 @@
 <main>
 <!-- ============================ HOME ============================ -->
 <section class="view active" id="view-home">
-  <div class="hero premium-hero">
-    <div class="hero-grid"></div>
-    <div class="hero-noise"></div>
-    <div class="hero-glow hero-glow-a"></div>
-    <div class="hero-glow hero-glow-b"></div>
-
+  <div class="hero">
     <div class="hero-inner">
-      <div class="hero-copy">
-        <span class="badge hero-badge"><span class="badge-dot"></span> PRIVATE DOWNLOAD WORKSPACE</span>
-        <h1>Download anything.<br><span class="grad">Own the result.</span></h1>
-        <p class="lede">A fast, polished downloader interface built around your device. Paste multiple links, choose your quality and manage every job from one clean queue.</p>
-
-        <div class="hero-cta">
-          <a href="#" class="btn btn-primary btn-xl" data-nav="downloader">Start Downloading <span class="btn-arrow">→</span></a>
-          <a href="#features" class="btn btn-ghost btn-xl" data-scroll="features">See Features</a>
-        </div>
-
-        <div class="hero-points">
-          <span><i>✓</i> Multi-link queue</span>
-          <span><i>✓</i> Live progress</span>
-          <span><i>✓</i> Local-first</span>
-        </div>
-
-        <div class="hero-status card">
-          <span class="status-pill is-off" id="heroStatus"><span class="dot"></span><span class="lbl">Checking…</span></span>
-          <span class="hero-status-hint" id="heroStatusHint">Checking this device for the Asad Downloader engine.</span>
-        </div>
+      <span class="badge">100% free &nbsp;·&nbsp; no accounts &nbsp;·&nbsp; no uploads</span>
+      <h1>Download videos<br>with <span class="grad">your own PC.</span></h1>
+      <p class="lede">Asad Downloader is a website downloader with a twist: the site is just the
+        remote control. A tiny engine on <strong>your</strong> computer does the downloading —
+        so your files, your bandwidth and your privacy stay yours.</p>
+      <div class="hero-cta">
+        <a href="#" class="btn btn-primary" data-nav="downloader">Open Downloader</a>
+        <a href="#" class="btn btn-ghost" id="heroEngineBtn">Download Local Engine</a>
       </div>
-
-      <div class="hero-visual" aria-label="Downloader dashboard preview">
-        <div class="preview-window">
-          <div class="preview-topbar">
-            <span class="window-dots"><i></i><i></i><i></i></span>
-            <span class="preview-url">asad.downloader / workspace</span>
-            <span class="preview-live"><b></b> LIVE</span>
-          </div>
-          <div class="preview-body">
-            <div class="preview-heading">
-              <div>
-                <small>DOWNLOAD QUEUE</small>
-                <strong>4 active jobs</strong>
-              </div>
-              <span class="preview-icon">↧</span>
-            </div>
-            <div class="preview-item">
-              <div class="preview-file-icon">MP4</div>
-              <div class="preview-file-copy"><strong>creator-video-01.mp4</strong><span>1080p • 84 MB</span><div class="preview-bar"><i style="width:82%"></i></div></div>
-              <b class="preview-percent">82%</b>
-            </div>
-            <div class="preview-item">
-              <div class="preview-file-icon">MP4</div>
-              <div class="preview-file-copy"><strong>travel-short-02.mp4</strong><span>720p • 42 MB</span><div class="preview-bar"><i style="width:57%"></i></div></div>
-              <b class="preview-percent">57%</b>
-            </div>
-            <div class="preview-item">
-              <div class="preview-file-icon">MP3</div>
-              <div class="preview-file-copy"><strong>music-audio-03.mp3</strong><span>Audio • 9 MB</span><div class="preview-bar"><i style="width:31%"></i></div></div>
-              <b class="preview-percent">31%</b>
-            </div>
-            <div class="preview-summary">
-              <span><b>2.8 MB/s</b> avg speed</span>
-              <span><b>03:42</b> remaining</span>
-              <span class="preview-secure">● Local</span>
-            </div>
-          </div>
-        </div>
-        <div class="float-card float-card-a"><span class="float-icon">01</span><div><strong>Batch ready</strong><small>12 links queued</small></div></div>
-        <div class="float-card float-card-b"><span class="float-icon">✓</span><div><strong>Completed</strong><small>Saved to your device</small></div></div>
+      <div class="hero-status card">
+        <span class="status-pill is-off" id="heroStatus"><span class="dot"></span><span class="lbl">Checking local engine…</span></span>
+        <span class="hero-status-hint" id="heroStatusHint">The site is checking whether the Asad Downloader engine is running on this computer.</span>
       </div>
     </div>
   </div>
 
-  <div class="strip premium-strip">
-    <div class="strip-item"><span class="strip-icon">01</span><div><strong>Bulk queue</strong><span>Up to 100 links per batch</span></div></div>
-    <div class="strip-item"><span class="strip-icon">02</span><div><strong>Live control</strong><span>Progress, speed and ETA</span></div></div>
-    <div class="strip-item"><span class="strip-icon">03</span><div><strong>Private</strong><span>Your files stay on your device</span></div></div>
-    <div class="strip-item"><span class="strip-icon">04</span><div><strong>No cloud storage</strong><span>No central video archive</span></div></div>
+  <div class="strip">
+    <div class="strip-item"><strong>Local-first</strong><span>Videos never leave your device</span></div>
+    <div class="strip-item"><strong>Multi-download</strong><span>Queue up to 100 links at once</span></div>
+    <div class="strip-item"><strong>Live progress</strong><span>Speed, ETA and status per video</span></div>
+    <div class="strip-item"><strong>Free forever</strong><span>Static site + your PC. No server bills.</span></div>
   </div>
 
   <div class="section" id="features">
@@ -175,118 +121,146 @@
   </div>
 </section>
 
-<!-- ============================ DOWNLOADER ============================ -->
-<section class="view" id="view-downloader">
-  <div class="dash-head">
-    <div>
-      <h2>ASAD DOWNLOADER</h2>
-      <p class="section-sub">Paste links below — your PC does the rest.</p>
-    </div>
-    <span class="status-pill is-off" id="dashStatus"><span class="dot"></span><span class="lbl">Checking…</span></span>
-  </div>
+<!-- ================= DOWNLOADER (desktop-style app shell) ================= -->
+<section id="view-downloader" class="view">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="side-brand">
+        <div class="side-logo">A</div>
+        <div class="side-brand-txt"><strong>ASAD DOWNLOADER</strong><span>Local Media Utility</span></div>
+      </div>
+      <nav class="side-nav">
+        <button class="side-link active" data-subview="dashboard">Dashboard</button>
+        <button class="side-link" data-subview="history">History</button>
+        <button class="side-link" data-subview="settings">Settings</button>
+        <button class="side-link" data-nav="about">About</button>
+      </nav>
+      <div class="side-foot">
+        <button id="engineBtn" class="engine-btn is-off"><span class="lbl">○ Not Connected</span></button>
+        <div class="side-ver">Asad Downloader v1.0</div>
+      </div>
+    </aside>
 
-  <div class="mobile-note card" id="mobileNote" hidden>
-    <strong>Heads up:</strong> you're on a small screen. The website works fine here, but the actual
-    downloading needs the <strong>desktop</strong> engine running on a Windows PC — phones can't run
-    the yt-dlp + FFmpeg workflow. <button class="link-btn" id="mobileNoteX">Dismiss</button>
-  </div>
+    <div class="app-main">
+      <!-- DASHBOARD -->
+      <div class="subview active" id="sub-dashboard">
+        <div class="dash-head">
+          <div><div class="eyebrow">DOWNLOAD CENTER</div><h2>Dashboard</h2></div>
+        </div>
 
-  <div class="card online-mode-panel" id="onlineModePanel" hidden>
-    <div class="online-mode-title"><span class="online-dot"></span> ONLINE MODE</div>
-    <p>This mode works without installing the desktop engine. The website uses a lightweight serverless resolver to obtain public media URLs, then your browser downloads the file.</p>
-    <p class="fine">Free-provider quotas and browser download permissions apply.</p>
-  </div>
+        <div id="notConnected" class="card warn-card" hidden>
+          <h3>LOCAL DOWNLOADER REQUIRED</h3>
+          <p>This website is only the control panel. The actual downloading is done by the
+          <strong>Asad Downloader Bridge</strong> — a small free program that runs on your own computer.</p>
+          <div class="row gap">
+            <a id="dlEngineBtn" class="btn primary">Download Local Engine</a>
+            <button id="checkAgainBtn" class="btn ghost">Check Again</button>
+          </div>
+          <p class="fine">Runs on your PC only. No account, no uploads, nothing leaves your computer.</p>
+        </div>
 
-  <!-- Not connected panel -->
-  <div class="card warn-panel" id="notConnected" hidden>
-    <h3>LOCAL DOWNLOADER REQUIRED</h3>
-    <p>To download videos using your own device, install the Asad Downloader local engine.
-       It runs only on <code>127.0.0.1</code> — your computer, your files, your bandwidth.</p>
-    <div class="row">
-      <a href="#" class="btn btn-primary" id="dlEngineBtn2">Download Local Engine</a>
-      <button class="btn btn-ghost" id="checkAgainBtn">Check Again</button>
-    </div>
-    <p class="fine">After installing, run it and this page will show ● Connected automatically.</p>
-  </div>
+        <div id="dashMain" hidden>
+          <div class="card hero-card">
+            <span class="tag">MULTI-DOWNLOAD</span>
+            <h3>Download multiple videos<br>in one queue.</h3>
+            <p>Paste one URL per line. The local engine processes your queue in parallel and keeps the interface responsive.</p>
+            <div class="hero-actions">
+              <button id="pasteBtn" class="btn primary">Paste Link</button>
+              <button id="smartBtn" class="btn ghost">Smart Mode: ON</button>
+            </div>
+            <button id="manualToggle" class="link-btn">or paste manually</button>
+            <div id="manualPaste" hidden>
+              <textarea id="manualBox" rows="3" placeholder="Paste video URLs here, one per line"></textarea>
+              <button id="manualAdd" class="btn small">Add to Queue</button>
+            </div>
+          </div>
 
-  <div id="dashMain" hidden>
-    <div class="stats">
-      <div class="stat card"><span class="stat-n" id="stActive">0</span><span class="stat-l">Active</span></div>
-      <div class="stat card"><span class="stat-n" id="stQueued">0</span><span class="stat-l">Queued</span></div>
-      <div class="stat card"><span class="stat-n" id="stDone">0</span><span class="stat-l">Completed</span></div>
-      <div class="stat card"><span class="stat-n bad" id="stFailed">0</span><span class="stat-l">Failed</span></div>
-    </div>
+          <div class="stats">
+            <div class="card stat"><span>ACTIVE</span><strong id="stActive">0</strong></div>
+            <div class="card stat"><span>QUEUED</span><strong id="stQueued">0</strong></div>
+            <div class="card stat"><span>COMPLETED</span><strong id="stDone">0</strong></div>
+            <div class="card stat"><span>FAILED</span><strong id="stFailed">0</strong></div>
+          </div>
 
-    <div class="card input-panel">
-      <label for="urlBox"><strong>Paste video URLs here</strong> — one URL per line <span class="muted">(up to 100)</span></label>
-      <textarea id="urlBox" rows="5" placeholder="https://example.com/video1&#10;https://example.com/video2&#10;https://example.com/video3"></textarea>
-      <div class="opts-row">
-        <label>Mode
-          <select id="optMode"><option value="video">Video</option><option value="audio">Audio (MP3)</option></select>
-        </label>
-        <label>Quality
-          <select id="optQuality"><option value="best">Best</option><option value="1080p">Up to 1080p</option><option value="720p">Up to 720p</option><option value="480p">Up to 480p</option></select>
-        </label>
-        <div class="opts-btns">
-          <button class="btn btn-primary" id="startBtn">Start Download</button>
-          <button class="btn btn-ghost" id="clearBtn">Clear</button>
+          <div class="card">
+            <div class="queue-head">
+              <h3>Download Queue</h3>
+              <div class="queue-actions">
+                <button id="startAllBtn" class="mini-btn">▶ Start All</button>
+                <button id="retryBtn" class="mini-btn">⟳ Retry Failed</button>
+                <button id="clearFinishedBtn" class="mini-btn">✕ Clear Finished</button>
+                <button id="openFolderBtn" class="mini-btn">Open Folder</button>
+              </div>
+            </div>
+            <div id="queueList"></div>
+          </div>
         </div>
       </div>
-      <p class="fine" id="submitHint">Online mode needs no desktop installation. Local mode keeps processing on your PC.</p>
-    </div>
 
-    <div class="tabs">
-      <button class="tab active" data-tab="queue">Queue</button>
-      <button class="tab" data-tab="history">History</button>
-      <button class="tab" data-tab="settings">Settings</button>
-    </div>
-
-    <div class="tabpane active" id="tab-queue">
-      <div id="queueList" class="job-list"><p class="empty">No downloads yet. Paste some URLs above and hit <strong>Start Download</strong>.</p></div>
-    </div>
-
-    <div class="tabpane" id="tab-history">
-      <div class="row history-bar">
-        <button class="btn btn-ghost btn-sm" id="openFolderBtn">Open Download Folder</button>
-        <span class="muted" id="historyCount"></span>
+      <!-- HISTORY -->
+      <div class="subview" id="sub-history">
+        <div class="dash-head">
+          <div><div class="eyebrow">DOWNLOAD CENTER</div><h2>History</h2></div>
+          <button id="clearHistoryBtn" class="mini-btn">✕ Clear History</button>
+        </div>
+        <div id="historyList"></div>
       </div>
-      <div id="historyList" class="job-list"><p class="empty">Nothing here yet.</p></div>
-    </div>
 
-    <div class="tabpane" id="tab-settings">
-      <div class="card settings-card">
-        <h3>Download settings</h3>
-        <div class="set-grid">
-          <label>Default mode
-            <select id="setMode"><option value="video">Video</option><option value="audio">Audio (MP3)</option></select>
-          </label>
-          <label>Video quality
-            <select id="setQuality"><option value="best">Best</option><option value="1080p">Up to 1080p</option><option value="720p">Up to 720p</option><option value="480p">Up to 480p</option></select>
-          </label>
-          <label>Concurrent downloads <span class="muted">(1–8)</span>
-            <span class="range-wrap"><input type="range" id="setWorkers" min="1" max="8" step="1" value="3"><span class="range-val" id="workersVal">3</span></span>
-          </label>
-          <p class="warn-line" id="workersWarn" hidden>High concurrency can trigger rate limits on strict sites. 3 is the safe default.</p>
-          <label class="span2">Download folder <span class="muted">(empty = Downloads / Asad Downloader)</span>
-            <input type="text" id="setDir" placeholder="e.g. D:\Videos">
-          </label>
-          <label class="span2">Filename template
-            <input type="text" id="setTemplate" value="%(title)s.%(ext)s">
-          </label>
-          <label class="check"><input type="checkbox" id="setOrganize"> Organize into subfolders per uploader</label>
-          <label>Retry count <input type="number" id="setRetries" min="0" max="10" value="3"></label>
-          <label>Retry delay (seconds) <input type="number" id="setRetryDelay" min="1" max="300" value="10"></label>
-          <label class="check span2"><input type="checkbox" id="setCookies"> Use my browser's login session for members-only videos <span class="muted">(cookies stay on this PC — never sent to the website)</span></label>
-          <label>Browser
-            <select id="setBrowser"><option value="chrome">Chrome</option><option value="edge">Edge</option><option value="firefox">Firefox</option><option value="brave">Brave</option></select>
-          </label>
+      <!-- SETTINGS -->
+      <div class="subview" id="sub-settings">
+        <div class="dash-head">
+          <div><div class="eyebrow">DOWNLOAD CENTER</div><h2>Settings</h2></div>
         </div>
-        <div class="row">
-          <button class="btn btn-primary" id="saveSettingsBtn">Save Settings</button>
-          <span class="muted" id="settingsMsg"></span>
+        <div class="card">
+          <h3>Download Settings</h3>
+          <div class="settings-grid">
+            <label>Format
+              <select id="setMode">
+                <option value="video">Video</option>
+                <option value="audio">Audio only (MP3)</option>
+              </select>
+            </label>
+            <label>Quality
+              <select id="setQuality">
+                <option value="best">Best available</option>
+                <option value="1080p">1080p</option>
+                <option value="720p">720p</option>
+                <option value="480p">480p</option>
+              </select>
+            </label>
+            <label>Parallel downloads: <strong id="workersVal">3</strong>
+              <input type="range" id="setWorkers" min="1" max="8" value="3">
+              <span class="warn-text" id="workersWarn" hidden>More than 4 at once can trigger rate limits on some sites.</span>
+            </label>
+            <label>Download folder <span class="fine">(blank = Downloads/Asad Downloader)</span>
+              <input type="text" id="setDir" placeholder="e.g. D:\Videos">
+            </label>
+            <label>Filename template
+              <input type="text" id="setTemplate" value="%(title)s.%(ext)s">
+            </label>
+            <label class="check"><input type="checkbox" id="setOrganize"> Organize into per-uploader subfolders</label>
+            <label>Retries on failure <input type="number" id="setRetries" min="0" max="10" value="3"></label>
+            <label>Base retry delay (seconds) <input type="number" id="setRetryDelay" min="1" max="120" value="10"></label>
+            <label class="check"><input type="checkbox" id="setCookies"> Use my browser's cookies for private/age-restricted videos</label>
+            <label>Browser
+              <select id="setBrowser">
+                <option value="chrome">Chrome</option>
+                <option value="firefox">Firefox</option>
+                <option value="edge">Edge</option>
+                <option value="brave">Brave</option>
+              </select>
+            </label>
+          </div>
+          <p class="fine">Cookies are read by the bridge on your own PC only — they are never sent to this website or anywhere else.</p>
+          <div class="row gap">
+            <button id="saveSettingsBtn" class="btn primary">Save Settings</button>
+            <span id="settingsMsg" class="fine"></span>
+          </div>
         </div>
-        <h3 class="mt">Bridge info</h3>
-        <div class="info-grid" id="bridgeInfo"><span class="muted">Connect the bridge to see details.</span></div>
+        <div class="card">
+          <h3>Local Engine</h3>
+          <div id="bridgeInfo" class="kv"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -299,7 +273,7 @@
     <div class="card about-card">
       <div class="about-brand">
         <span class="brand-mark lg" aria-hidden="true">
-          <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#3b82f6"/><path d="M16 7v11m0 0l-5-5m5 5l5-5M8 22h16v3H8z" stroke="#030712" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#00e676"/><path d="M16 7v11m0 0l-5-5m5 5l5-5M8 22h16v3H8z" stroke="#071007" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
         <div><h3>ASAD DOWNLOADER</h3><p class="muted">Created by Asad Raza</p></div>
         <span class="ver">v1.0.0</span>
@@ -330,7 +304,6 @@
   <span class="muted">Your PC does the downloading. Nothing is uploaded anywhere.</span>
 </footer>
 
-<script src="online-config.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

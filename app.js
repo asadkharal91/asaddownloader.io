@@ -1,14 +1,11 @@
 /* ==========================================================================
-   Asad Downloader — website frontend
+   Asad Downloader — website frontend (desktop-style dashboard)
    Static page (GitHub Pages) <-> local bridge at http://127.0.0.1:8765
-   The website NEVER downloads anything itself; the bridge on the user's
-   own PC does all the work via yt-dlp + FFmpeg.
+   Workflow mirrors the desktop app: Paste Link -> queue -> Start All.
    ========================================================================== */
 "use strict";
 
 /* ---------------- configuration ---------------- */
-// ASAD: when you publish the bridge EXE as a GitHub Release, you can point
-// this at the direct asset URL. The releases page works fine as-is too.
 const BRIDGE_BASE = "http://127.0.0.1:8765";
 const BRIDGE_DOWNLOAD_URL = "https://github.com/asadkharal91/asaddownloader.io/releases";
 const HEALTH_MS = 5000;
@@ -19,6 +16,9 @@ let connected = false;
 let jobsCache = [];
 let healthInfo = null;
 let settingsLoaded = false;
+let pending = [];            // staged URLs not yet sent to the bridge
+let smartMode = true;
+try { smartMode = localStorage.getItem("ad-smart") !== "0"; } catch (e) {}
 
 /* ---------------- helpers ---------------- */
 const $ = (id) => document.getElementById(id);
@@ -88,13 +88,13 @@ function showView(name) {
   if (el) el.classList.add("active");
   document.querySelectorAll("[data-nav]").forEach((a) =>
     a.classList.toggle("active", a.getAttribute("data-nav") === name));
-  $("navLinks").classList.remove("open");
+  const nl = $("navLinks");
+  if (nl) nl.classList.remove("open");
   window.scrollTo({ top: 0 });
 }
 
 function goHomeAndScroll(id) {
   showView("home");
-  // wait a tick for the view to display, then scroll
   setTimeout(() => {
     const el = $(id);
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -106,19 +106,20 @@ document.addEventListener("click", (e) => {
   if (nav) { e.preventDefault(); showView(nav.getAttribute("data-nav")); return; }
   const sc = e.target.closest("[data-scroll]");
   if (sc) { e.preventDefault(); goHomeAndScroll(sc.getAttribute("data-scroll")); return; }
+  const sv = e.target.closest("[data-subview]");
+  if (sv) { showSubview(sv.getAttribute("data-subview")); return; }
 });
 
-$("navBurger").addEventListener("click", () => $("navLinks").classList.toggle("open"));
+function showSubview(name) {
+  document.querySelectorAll(".subview").forEach((v) => v.classList.remove("active"));
+  const el = $("sub-" + name);
+  if (el) el.classList.add("active");
+  document.querySelectorAll("[data-subview]").forEach((b) =>
+    b.classList.toggle("active", b.getAttribute("data-subview") === name));
+}
 
-/* tabs */
-document.querySelectorAll(".tab").forEach((t) => {
-  t.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
-    document.querySelectorAll(".tabpane").forEach((x) => x.classList.remove("active"));
-    t.classList.add("active");
-    $("tab-" + t.getAttribute("data-tab")).classList.add("active");
-  });
-});
+const navBurger = $("navBurger");
+if (navBurger) navBurger.addEventListener("click", () => $("navLinks").classList.toggle("open"));
 
 /* theme */
 function applyTheme(th) {
@@ -134,37 +135,34 @@ try {
 } catch (e) {}
 
 /* engine download buttons */
-["heroEngineBtn", "dlEngineBtn", "dlEngineBtn2"].forEach((id) => {
+["dlEngineBtn", "dlEngineBtn2"].forEach((id) => {
   const el = $(id);
   if (el) { el.href = BRIDGE_DOWNLOAD_URL; el.target = "_blank"; el.rel = "noopener"; }
 });
 
-/* mobile note */
-(function () {
-  let dismissed = false;
-  try { dismissed = localStorage.getItem("ad-mobile-note") === "1"; } catch (e) {}
-  if (!dismissed && window.innerWidth < 640) $("mobileNote").hidden = false;
-  $("mobileNoteX").addEventListener("click", () => {
-    $("mobileNote").hidden = true;
-    try { localStorage.setItem("ad-mobile-note", "1"); } catch (e) {}
-  });
-})();
-
 /* ---------------- connection status ---------------- */
-function setPill(el, state, label) {
-  if (!el) return;
-  el.classList.remove("is-on", "is-off");
-  el.classList.add(state === "on" ? "is-on" : "is-off");
-  el.querySelector(".lbl").textContent = label;
-}
-
 function renderConnection() {
   const on = connected;
-  const label = on ? "● Connected" : "○ Not Connected";
-  setPill($("navStatus"), on ? "on" : "off", on ? "● Connected" : "○ Not Connected");
-  setPill($("dashStatus"), on ? "on" : "off", label);
-  setPill($("heroStatus"), on ? "on" : "off", on ? "● Local engine connected" : "○ Local engine not detected");
-  $("heroStatusHint").textContent = on
+  const nav = $("navStatus");
+  if (nav) {
+    nav.classList.toggle("is-on", on);
+    nav.classList.toggle("is-off", !on);
+    nav.querySelector(".lbl").textContent = on ? "● Connected" : "○ Not Connected";
+  }
+  const eb = $("engineBtn");
+  if (eb) {
+    eb.classList.toggle("is-on", on);
+    eb.classList.toggle("is-off", !on);
+    eb.querySelector(".lbl").textContent = on ? "● Engine Connected" : "○ Not Connected";
+  }
+  const hs = $("heroStatus");
+  if (hs) {
+    hs.classList.toggle("is-on", on);
+    hs.classList.toggle("is-off", !on);
+    hs.querySelector(".lbl").textContent = on ? "● Local engine connected" : "○ Local engine not detected";
+  }
+  const hh = $("heroStatusHint");
+  if (hh) hh.textContent = on
     ? "The Asad Downloader engine is running on this computer. Open the Downloader and paste your links."
     : "Install and run the Asad Downloader Bridge on this computer, then this will turn green automatically.";
   $("notConnected").hidden = on;
@@ -177,16 +175,133 @@ async function checkHealth() {
     const was = connected;
     connected = true;
     healthInfo = h;
-    if (!was) { renderConnection(); loadSettings(); refreshJobs(); }
-    else renderConnection();
+    renderConnection();
+    if (!was) { loadSettings(); refreshJobs(); }
   } catch (e) {
     if (connected) { connected = false; renderConnection(); }
-    else { setPill($("navStatus"), "off", "○ Not Connected"); setPill($("heroStatus"), "off", "○ Local engine not detected"); setPill($("dashStatus"), "off", "○ Not Connected"); }
+    else renderConnection();
   }
 }
 $("checkAgainBtn").addEventListener("click", () => { toast("Checking for the local engine…"); checkHealth(); });
+$("engineBtn").addEventListener("click", () => { toast("Checking for the local engine…"); checkHealth(); });
 
-/* ---------------- jobs ---------------- */
+/* ---------------- queue: paste -> stage -> start ---------------- */
+function shortUrl(u) {
+  return u.length > 72 ? u.slice(0, 72) + "…" : u;
+}
+
+function addUrls(text) {
+  const urls = String(text || "").split("\n").map((s) => s.trim())
+    .filter((s) => /^https?:\/\//i.test(s));
+  if (!urls.length) { toast("No URLs found. Copy a video link first.", true); return; }
+  const seen = new Set(pending.map((p) => p.url));
+  let added = 0;
+  urls.forEach((u) => {
+    if (!seen.has(u)) { seen.add(u); pending.push({ cid: "p" + Date.now() + "_" + added, url: u }); added++; }
+  });
+  if (!added) { toast("Those links are already in the queue.", true); return; }
+  if (smartMode && connected) {
+    startPending();
+  } else {
+    renderAll();
+    toast(added + " link(s) added to the queue." +
+      (smartMode && !connected ? " Engine is offline — they will wait here." : " Hit Start All when ready."));
+  }
+}
+
+async function startPending() {
+  if (!pending.length) { toast("Nothing to start — paste some links first.", true); return; }
+  if (!connected) { toast("Start the local engine first (see the panel above).", true); return; }
+  const urls = pending.map((p) => p.url);
+  try {
+    const data = await api("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        urls: urls,
+        options: { mode: $("setMode").value, quality: $("setQuality").value },
+      }),
+    });
+    const n = (data.jobs || []).length;
+    pending = [];
+    renderAll();
+    refreshJobs();
+    toast(n + " download(s) started on your local engine.");
+  } catch (e) {
+    toast("Could not start downloads: " + e.message, true);
+  }
+}
+
+$("pasteBtn").addEventListener("click", async () => {
+  let text = "";
+  try {
+    text = await navigator.clipboard.readText();
+  } catch (e) {
+    $("manualPaste").hidden = false;
+    toast("The browser blocked clipboard access — paste manually below.", true);
+    return;
+  }
+  if (!text.trim()) { toast("Clipboard is empty. Copy a video link first.", true); return; }
+  addUrls(text);
+});
+
+$("manualToggle").addEventListener("click", () => {
+  $("manualPaste").hidden = !$("manualPaste").hidden;
+});
+$("manualAdd").addEventListener("click", () => {
+  addUrls($("manualBox").value);
+  $("manualBox").value = "";
+});
+
+function renderSmartBtn() {
+  $("smartBtn").textContent = "Smart Mode: " + (smartMode ? "ON" : "OFF");
+}
+$("smartBtn").addEventListener("click", () => {
+  smartMode = !smartMode;
+  try { localStorage.setItem("ad-smart", smartMode ? "1" : "0"); } catch (e) {}
+  renderSmartBtn();
+  toast("Smart Mode " + (smartMode ? "ON — pasted links start instantly." : "OFF — pasted links wait for Start All."));
+});
+renderSmartBtn();
+
+$("startAllBtn").addEventListener("click", startPending);
+
+$("retryBtn").addEventListener("click", async () => {
+  const failed = jobsCache.filter((j) => j.status === "failed");
+  if (!failed.length) { toast("No failed downloads to retry.", true); return; }
+  if (!connected) { toast("Start the local engine first.", true); return; }
+  const urls = failed.map((j) => j.url);
+  try {
+    await api("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ urls: urls, options: { mode: $("setMode").value, quality: $("setQuality").value } }),
+    });
+    for (const j of failed) { try { await api("/api/jobs/" + j.id, { method: "DELETE" }); } catch (e) {} }
+    toast(urls.length + " download(s) re-queued.");
+    refreshJobs();
+  } catch (e) { toast("Retry failed: " + e.message, true); }
+});
+
+async function clearFinished() {
+  const done = jobsCache.filter((j) => ["completed", "failed", "cancelled"].includes(j.status));
+  if (!done.length) { toast("Nothing to clear.", true); return; }
+  for (const j of done) { try { await api("/api/jobs/" + j.id, { method: "DELETE" }); } catch (e) {} }
+  toast("Cleared " + done.length + " finished job(s).");
+  refreshJobs();
+}
+$("clearFinishedBtn").addEventListener("click", clearFinished);
+$("clearHistoryBtn").addEventListener("click", clearFinished);
+
+async function openFolder() {
+  try {
+    const d = await api("/api/open-folder", { method: "POST" });
+    toast("Opened: " + (d.folder || "download folder"));
+  } catch (e) { toast("Could not open folder: " + e.message, true); }
+}
+$("openFolderBtn").addEventListener("click", openFolder);
+
+/* ---------------- jobs rendering ---------------- */
 const TERMINAL = ["completed", "failed", "cancelled"];
 
 function statusChip(s) {
@@ -197,9 +312,17 @@ function statusChip(s) {
   return '<span class="chip ' + esc(s) + '">' + esc(map[s] || s) + "</span>";
 }
 
-function jobCard(j, inHistory) {
+function pendingRow(p) {
+  return '<div class="qrow">' +
+    '<div class="job-top"><div><div class="job-title">' + esc(shortUrl(p.url)) + "</div>" +
+    '<div class="job-url">Waiting to start</div></div>' +
+    '<div class="job-actions">' + statusChip("queued") +
+    '<button class="mini-btn danger" data-unstage="' + esc(p.cid) + '">✕</button></div></div></div>';
+}
+
+function jobRow(j, inHistory) {
   const pct = Math.max(0, Math.min(100, Number(j.progress) || 0));
-  let meta = '<span><b>' + pct.toFixed(0) + '%</b></span>';
+  let meta = "<span><b>" + pct.toFixed(0) + "%</b></span>";
   if (j.speed) meta += "<span>Speed <b>" + esc(j.speed) + "</b></span>";
   if (j.eta != null) meta += "<span>ETA <b>" + esc(fmtEta(j.eta)) + "</b></span>";
   if (j.downloaded_bytes || j.total_bytes)
@@ -219,13 +342,12 @@ function jobCard(j, inHistory) {
 
   let err = "";
   if (j.error) {
-    err = '<details class="job-err"><summary>' + esc(j.error) + '</summary>' +
-      (j.error_detail ? "<p>" + esc(j.error_detail) + "</p>" : "") +
-      '<p><button class="link-btn" data-details="' + esc(j.id) + '">View Details</button></p></details>';
+    err = '<details class="job-err"><summary>' + esc(j.error) + "</summary>" +
+      (j.error_detail ? "<p>" + esc(j.error_detail) + "</p>" : "") + "</details>";
   }
 
-  return '<div class="card job">' +
-    '<div class="job-top"><div><div class="job-title">' + esc(j.title || j.url) + "</div>" +
+  return '<div class="qrow">' +
+    '<div class="job-top"><div><div class="job-title">' + esc(j.title || shortUrl(j.url)) + "</div>" +
     '<div class="job-url">' + esc(j.url) + "</div></div>" +
     '<div class="job-actions">' + statusChip(j.status) + actions + "</div></div>" +
     '<div class="pbar"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
@@ -234,22 +356,24 @@ function jobCard(j, inHistory) {
     "</div>";
 }
 
-function renderJobs() {
+function emptyQueueHtml() {
+  return '<div class="empty-queue"><div class="big-arrow">↓</div>' +
+    "<strong>No downloads yet</strong><span>Copy a video link, then click Paste Link above.</span></div>";
+}
+
+function renderAll() {
   const active = jobsCache.filter((j) => !TERMINAL.includes(j.status));
   const done = jobsCache.filter((j) => TERMINAL.includes(j.status));
 
   const q = $("queueList");
-  q.innerHTML = active.length
-    ? active.map((j) => jobCard(j, false)).join("")
-    : '<p class="empty">No downloads yet. Paste some URLs above and hit <strong>Start Download</strong>.</p>';
+  const rows = pending.map(pendingRow).concat(active.map((j) => jobRow(j, false)));
+  q.innerHTML = rows.length ? rows.join("") : emptyQueueHtml();
 
   const h = $("historyList");
-  h.innerHTML = done.length
-    ? done.map((j) => jobCard(j, true)).join("")
-    : '<p class="empty">Nothing here yet.</p>';
-  $("historyCount").textContent = done.length ? done.length + " job(s)" : "";
+  h.innerHTML = done.length ? done.map((j) => jobRow(j, true)).join("")
+    : '<div class="empty-queue"><strong>No history yet</strong><span>' +
+      (connected ? "Finished downloads will appear here." : "Start the local engine to see download history.") + "</span></div>";
 
-  // stats
   let a = 0, qu = 0, c = 0, f = 0;
   jobsCache.forEach((j) => {
     if (j.status === "downloading" || j.status === "retrying") a++;
@@ -258,7 +382,7 @@ function renderJobs() {
     else if (j.status === "failed") f++;
   });
   $("stActive").textContent = a;
-  $("stQueued").textContent = qu;
+  $("stQueued").textContent = qu + pending.length;
   $("stDone").textContent = c;
   $("stFailed").textContent = f;
 }
@@ -268,12 +392,18 @@ async function refreshJobs() {
   try {
     const data = await api("/api/jobs", {}, 8000);
     jobsCache = data.jobs || [];
-    renderJobs();
+    renderAll();
   } catch (e) { /* keep last render; next poll retries */ }
 }
 
 /* delegated job actions */
 document.addEventListener("click", async (e) => {
+  const unstage = e.target.closest("[data-unstage]");
+  if (unstage) {
+    pending = pending.filter((p) => p.cid !== unstage.getAttribute("data-unstage"));
+    renderAll();
+    return;
+  }
   const cancelBtn = e.target.closest("[data-cancel]");
   if (cancelBtn) {
     const id = cancelBtn.getAttribute("data-cancel");
@@ -291,58 +421,8 @@ document.addEventListener("click", async (e) => {
     refreshJobs();
     return;
   }
-  if (e.target.closest("[data-openfolder]")) { openFolder(); return; }
-  const detBtn = e.target.closest("[data-details]");
-  if (detBtn) {
-    const id = detBtn.getAttribute("data-details");
-    try {
-      const d = await api("/api/jobs/" + id);
-      const j = d.job || {};
-      toast("Job " + id.slice(0, 8) + " · status=" + j.status +
-        (j.error_detail ? " · " + j.error_detail : ""));
-    } catch (err) { toast("Details unavailable: " + err.message, true); }
-  }
+  if (e.target.closest("[data-openfolder]")) { openFolder(); }
 });
-
-async function openFolder() {
-  try {
-    const d = await api("/api/open-folder", { method: "POST" });
-    toast("Opened: " + (d.folder || "download folder"));
-  } catch (e) { toast("Could not open folder: " + e.message, true); }
-}
-$("openFolderBtn").addEventListener("click", openFolder);
-
-/* submit */
-$("startBtn").addEventListener("click", async () => {
-  const raw = $("urlBox").value.split("\n").map((s) => s.trim()).filter(Boolean);
-  if (!raw.length) { toast("Paste at least one URL first.", true); return; }
-  if (raw.length > 100) { toast("Maximum 100 URLs per submission.", true); return; }
-  const btn = $("startBtn");
-  btn.disabled = true;
-  btn.textContent = "Sending…";
-  try {
-    const data = await api("/api/jobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        urls: raw,
-        options: { mode: $("optMode").value, quality: $("optQuality").value },
-      }),
-    });
-    const n = (data.jobs || []).length;
-    $("urlBox").value = "";
-    toast(n + " job(s) sent to your local engine.");
-    // jump to queue tab
-    document.querySelector('.tab[data-tab="queue"]').click();
-    refreshJobs();
-  } catch (e) {
-    toast("Could not start downloads: " + e.message, true);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Start Download";
-  }
-});
-$("clearBtn").addEventListener("click", () => { $("urlBox").value = ""; $("urlBox").focus(); });
 
 /* ---------------- settings ---------------- */
 async function loadSettings() {
@@ -362,9 +442,6 @@ async function loadSettings() {
     $("setRetryDelay").value = c.retry_delay != null ? c.retry_delay : 10;
     $("setCookies").checked = !!c.use_browser_cookies;
     $("setBrowser").value = c.browser || "chrome";
-    $("optMode").value = c.mode || "video";
-    $("optQuality").value = c.quality || "best";
-    // bridge info
     const h = healthInfo || {};
     $("bridgeInfo").innerHTML =
       infoRow("Bridge version", "v" + esc(h.version || "?")) +
@@ -375,7 +452,7 @@ async function loadSettings() {
   } catch (e) { /* not connected yet */ }
 }
 function infoRow(k, v) {
-  return '<div><span>' + esc(k) + "</span><strong>" + v + "</strong></div>";
+  return "<div><span>" + esc(k) + "</span><strong>" + v + "</strong></div>";
 }
 
 $("setWorkers").addEventListener("input", (e) => {
@@ -413,126 +490,8 @@ $("saveSettingsBtn").addEventListener("click", async () => {
 });
 
 /* ---------------- boot ---------------- */
+renderAll();
 renderConnection();
 checkHealth();
 setInterval(checkHealth, HEALTH_MS);
 setInterval(refreshJobs, JOBS_MS);
-
-/* ---------------- optional zero-install online mode ----------------
-   Set window.ASAD_ONLINE_API_BASE in online-config.js to enable.
-   The existing local bridge mode remains available when blank.
--------------------------------------------------------------------- */
-const ONLINE_API_BASE = String(window.ASAD_ONLINE_API_BASE || "").replace(/\\/$/, "");
-const USE_ONLINE_MODE = !!ONLINE_API_BASE;
-let onlineJobs = [];
-let onlineTimer = null;
-
-async function onlineApi(path, opts, timeoutMs) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs || 30000);
-  try {
-    const res = await fetch(ONLINE_API_BASE + path, Object.assign({signal:ctrl.signal}, opts || {}));
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw Object.assign(new Error(data.error || ("Request failed (" + res.status + ")")), {status:res.status,data});
-    return data;
-  } finally { clearTimeout(timer); }
-}
-
-function makeOnlineJob(url) {
-  return {
-    id:"web-" + Math.random().toString(16).slice(2) + Date.now().toString(16),
-    url, title:"Waiting…", status:"queued", progress:0, speed:"", eta:null,
-    downloaded_bytes:0, total_bytes:null, filename:"", error:"", error_detail:"",
-    created_at:Date.now()/1000, finished_at:null, attempt:1, has_file:false, downloadUrl:""
-  };
-}
-
-function onlineDownload(job) {
-  if (!job.downloadUrl) return;
-  const a=document.createElement("a");
-  a.href=job.downloadUrl;
-  a.download=job.filename || "";
-  a.target="_blank";
-  a.rel="noreferrer";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
-async function processOnlineBatch(batch) {
-  batch.forEach(j => { j.status="downloading"; j.title="Resolving…"; });
-  jobsCache = onlineJobs;
-  renderJobs();
-  try {
-    const data=await onlineApi("/api/resolve-batch",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({
-        urls:batch.map(j=>j.url),
-        mode:$("optMode").value,
-        quality:$("optQuality").value==="1080p" ? "1080" : $("optQuality").value==="720p" ? "720" : $("optQuality").value==="480p" ? "480" : "best"
-      })
-    });
-    const byUrl=new Map((data.results||[]).map(r=>[r.url,r]));
-    batch.forEach(j=>{
-      const r=byUrl.get(j.url);
-      if(!r || !r.ok){
-        j.status="failed"; j.error=r?.error || "Could not resolve this URL."; j.error_detail=r?.retryAfter ? ("Retry after "+r.retryAfter+" seconds.") : "";
-        j.finished_at=Date.now()/1000; return;
-      }
-      j.status="completed"; j.title=r.title || j.url; j.filename=r.filename || "download";
-      j.downloadUrl=r.downloadUrl; j.has_file=true; j.progress=100; j.finished_at=Date.now()/1000;
-      j.error=""; j.error_detail="";
-    });
-    jobsCache=onlineJobs; renderJobs();
-    // Attempt direct browser delivery. The browser may require permission for multiple downloads.
-    for (const job of batch){
-      if(job.status==="completed" && job.downloadUrl){
-        await new Promise(resolve=>setTimeout(resolve,250));
-        onlineDownload(job);
-      }
-    }
-  } catch(err) {
-    batch.forEach(j=>{ j.status="failed"; j.error=err.message || "Online resolver failed."; j.error_detail=err.status===429 ? "Please wait before retrying." : ""; j.finished_at=Date.now()/1000; });
-    jobsCache=onlineJobs; renderJobs();
-  }
-}
-
-async function onlineQueueRunner(){
-  if(!USE_ONLINE_MODE || onlineTimer) return;
-  const pending=onlineJobs.filter(j=>j.status==="queued");
-  if(!pending.length) return;
-  await processOnlineBatch(pending.slice(0,10));
-  if(onlineJobs.some(j=>j.status==="queued")){
-    onlineTimer=setTimeout(()=>{onlineTimer=null;onlineQueueRunner();},61000);
-  }
-}
-
-function installOnlineMode(){
-  const panel=$("onlineModePanel"); if(panel) panel.hidden=false;
-  connected=true; healthInfo={online:true};
-  renderConnection();
-  $("heroStatusHint").textContent="Online mode is ready. No desktop engine is required.";
-  $("submitHint").textContent="Online mode: no Python or FFmpeg installation is required. Free provider quotas apply.";
-  const of=$("openFolderBtn"); if(of) of.hidden=true;
-  ["setWorkers","setDir","setTemplate","setOrganize","setRetries","setRetryDelay","setCookies","setBrowser"].forEach(id=>{
-    const el=$(id); const p=el?.closest("label"); if(p)p.hidden=true;
-  });
-  const sb=$("saveSettingsBtn"); if(sb) sb.hidden=true;
-  const wi=$("workersWarn"); if(wi) wi.hidden=true;
-
-  const btn=$("startBtn");
-  const fresh=btn.cloneNode(true); btn.replaceWith(fresh);
-  fresh.addEventListener("click",()=>{
-    const urls=$("urlBox").value.split("\\n").map(s=>s.trim()).filter(Boolean);
-    if(!urls.length){toast("Paste at least one URL first.",true);return;}
-    if(urls.length>100){toast("Maximum 100 URLs per submission.",true);return;}
-    urls.forEach(u=>onlineJobs.push(makeOnlineJob(u)));
-    $("urlBox").value="";
-    jobsCache=onlineJobs; renderJobs();
-    document.querySelector(".tab[data-tab=queue]").click();
-    onlineQueueRunner();
-  });
-}
-
-window.addEventListener("load",()=>{if(USE_ONLINE_MODE)installOnlineMode();},{once:true});
