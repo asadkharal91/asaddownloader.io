@@ -6,9 +6,9 @@ REM
 REM  Requirements:
 REM    - Python 3.10+ with pip
 REM    - run:  pip install pyinstaller yt-dlp
-REM    - FFmpeg (optional but recommended): place ffmpeg.exe next to
-REM      this file, or set FFMPEG_PATH below. It gets bundled inside
-REM      the exe so users don't need to install it separately.
+REM    - FFmpeg (recommended): place ffmpeg.exe next to
+REM      this file. It is bundled into the one-file EXE so users
+REM      do not need a separate FFmpeg installation.
 REM ============================================================
 title Asad Downloader Bridge - Build
 cd /d "%~dp0"
