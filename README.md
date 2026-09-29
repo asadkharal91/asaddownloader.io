@@ -50,3 +50,7 @@ accounts, no uploads, no tracking. Raw cookies/tokens never leave your PC.
 Built on [yt-dlp](https://github.com/yt-dlp/yt-dlp) and
 [FFmpeg](https://ffmpeg.org/). Not affiliated with any video platform.
 Only download videos you own or have permission to download.
+
+ 
+### Local-first deployment
+The public site stays static on GitHub Pages. The localhost bridge performs the actual downloads and stores media on the user's computer; no central download server is required.
