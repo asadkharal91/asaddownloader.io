@@ -8,6 +8,10 @@
 /* ---------------- configuration ---------------- */
 const BRIDGE_BASE = "http://127.0.0.1:8765";
 const BRIDGE_DOWNLOAD_URL = "https://github.com/asadkharal91/asaddownloader.io/releases";
+/* Online fallback API (fabwaseem/social-media-video-downloader-api, self-hosted
+   on Render). Empty string = disabled; the site then behaves exactly as before
+   (local engine only). Set to the Render URL (no trailing slash) after deploy. */
+const FALLBACK_API_URL = "";
 const HEALTH_MS = 5000;
 const JOBS_MS = 2000;
 
@@ -507,11 +511,21 @@ async function probeSingle() {
   if (!/^https?:\/\//i.test(url)) { singleMsg("Paste a valid video URL first.", true); return; }
   if (!connected) {
     singleMsg("");
-    $("singleResult").innerHTML =
+    let card =
       '<div class="card warn-card"><h3>LOCAL DOWNLOADER REQUIRED</h3>' +
       "<p>Run the Asad Downloader Bridge on this PC first — then paste your link again.</p>" +
-      '<p><a href="#" class="btn primary engine-dl">Download Local Engine</a></p></div>';
+      '<p><a href="#" class="btn primary engine-dl">Download Local Engine</a></p>';
+    if (FALLBACK_API_URL) {
+      card +=
+        '<p style="margin-top:10px;font-size:13px;opacity:.8">On a phone or another PC? ' +
+        "You can use the slower online fallback instead — the file downloads to this device.</p>" +
+        '<p><button class="btn" id="fbUse">Try Online Fallback</button></p>';
+    }
+    card += "</div>";
+    $("singleResult").innerHTML = card;
     wireEngineDls();
+    const fbBtn = $("fbUse");
+    if (fbBtn) fbBtn.addEventListener("click", () => probeFallback(url));
     return;
   }
   singleUrl = url; singleJobId = null;
@@ -552,6 +566,7 @@ document.addEventListener("click", async (e) => {
   const qb = e.target.closest("[data-q]");
   if (!qb || !qb.closest("#singleResult")) return;
   const q = qb.getAttribute("data-q");
+  if (singleMode === "fallback") { startFallbackJob(qb, q); return; }
   qb.disabled = true;
   const prog = $("vcProg");
   prog.innerHTML = '<div class="pbar"><i style="width:0%"></i></div><div class="job-meta"><span>Starting…</span></div>';
@@ -596,6 +611,114 @@ function renderSingleProgress() {
       '<div class="job-meta"><span><b>' + pct.toFixed(0) + "%</b></span>" +
       (j.speed ? "<span>" + esc(j.speed) + "</span>" : "") +
       (j.eta != null ? "<span>ETA " + esc(fmtEta(j.eta)) + "</span>" : "") + "</div>";
+  }
+}
+
+/* ---------------- online fallback (hosted API) ----------------
+   Used only when the local bridge isn't running and FALLBACK_API_URL is set.
+   No API key is embedded: the server accepts keyless requests from this
+   site's origin (Origin/Referer allowlist mode). */
+
+let singleMode = "bridge";   // "bridge" | "fallback"
+let fbUrl = null;
+let fbTimer = null;
+
+function fmtDur(sec) {
+  if (sec == null || isNaN(sec)) return "";
+  sec = Math.max(0, Math.round(Number(sec)));
+  const m = Math.floor(sec / 60);
+  return m + ":" + String(sec % 60).padStart(2, "0");
+}
+
+async function fbApi(path, opts, timeoutMs) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs || 30000);
+  try {
+    const res = await fetch(FALLBACK_API_URL + path, Object.assign({ signal: ctrl.signal }, opts || {}));
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* non-JSON */ }
+    if (!res.ok) throw new Error((data && (data.message || data.error)) || ("Request failed (" + res.status + ")"));
+    return data;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+async function probeFallback(url) {
+  singleMode = "fallback"; fbUrl = url;
+  if (fbTimer) { clearTimeout(fbTimer); fbTimer = null; }
+  singleMsg("Contacting online fallback… (free server, may take up to a minute to wake)");
+  $("singleResult").innerHTML = "";
+  $("singleGo").disabled = true;
+  try {
+    const info = await fbApi("/v2/media/info?url=" + encodeURIComponent(url), {}, 90000);
+    singleMsg("");
+    renderVideoCard({
+      title: info.title || "Video",
+      thumbnail: info.thumbnail || null,
+      uploader: info.uploader || info.platform || "",
+      duration_str: fmtDur(info.durationSeconds),
+    });
+  } catch (err) {
+    singleMsg("Fallback couldn't read that link: " + err.message, true);
+    singleMode = "bridge";
+  } finally {
+    $("singleGo").disabled = false;
+  }
+}
+
+async function startFallbackJob(qb, q) {
+  qb.disabled = true;
+  const prog = $("vcProg");
+  prog.innerHTML = '<div class="pbar"><i style="width:0%"></i></div><div class="job-meta"><span>Queuing on fallback server…</span></div>';
+  const body = q === "audio"
+    ? { url: fbUrl, kind: "audio", quality: "best", format: "mp3" }
+    : { url: fbUrl, kind: "video", quality: q === "2160p" ? "highest" : q, format: "mp4" };
+  let job;
+  try {
+    job = await fbApi("/v2/downloads", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }, 60000);
+  } catch (err) {
+    prog.innerHTML = '<div class="job-err"><summary>Could not start: ' + esc(err.message) + "</summary></div>";
+    qb.disabled = false;
+    return;
+  }
+  pollFallbackJob(job.id);
+}
+
+async function pollFallbackJob(id) {
+  const prog = $("vcProg");
+  if (!prog) return;
+  let job;
+  try {
+    job = await fbApi("/v2/downloads/" + encodeURIComponent(id), {}, 30000);
+  } catch (err) {
+    fbTimer = setTimeout(() => pollFallbackJob(id), 4000);
+    return;
+  }
+  const pct = Math.max(0, Math.min(100, Number(job.progress) || 0));
+  if (job.status === "COMPLETED" && job.fileUrl) {
+    const href = FALLBACK_API_URL + job.fileUrl;
+    prog.innerHTML = '<div class="job-meta"><span>Ready' +
+      (job.filename ? ": <b>" + esc(job.filename) + "</b>" : "") + "</span></div>" +
+      '<div class="row gap" style="margin-top:8px"><a class="mini-btn" href="' + esc(href) + '" target="_blank" rel="noopener">Get File</a>' +
+      '<button class="link-btn" id="singleAgain">Download another</button></div>' +
+      '<div class="job-meta" style="margin-top:6px"><span>Via online fallback — file downloads to this device, not to a PC folder.</span></div>';
+    $("singleAgain").addEventListener("click", () => {
+      $("singleResult").innerHTML = ""; $("singleUrl").value = ""; $("singleUrl").focus();
+      singleMode = "bridge";
+    });
+  } else if (job.status === "FAILED" || job.status === "CANCELLED" || job.status === "EXPIRED") {
+    prog.innerHTML = '<div class="job-err"><summary>' + esc(job.error || ("Job " + job.status.toLowerCase())) +
+      ". The local engine on a PC handles more links reliably.</summary></div>";
+  } else {
+    const label = job.status === "QUEUED" ? "Queued" :
+      job.status === "FETCHING_INFO" ? "Reading info" : "Downloading";
+    prog.innerHTML = '<div class="pbar"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
+      '<div class="job-meta"><span><b>' + pct.toFixed(0) + "%</b> · " + label + " (online fallback)</span></div>";
+    fbTimer = setTimeout(() => pollFallbackJob(id), 2500);
   }
 }
 

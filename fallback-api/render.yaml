@@ -1,0 +1,36 @@
+# Render Blueprint — Asad Downloader Fallback API
+# One-click deploy of https://github.com/fabwaseem/social-media-video-downloader-api
+# as the online fallback for asaddownloader.io (used only when the local
+# bridge engine isn't running on the user's PC).
+#
+# IMPORTANT: FRONTEND_SECRET is intentionally NOT set. With no secret, the API
+# runs in "Origin-allowlist" mode: browsers on ALLOWED_ORIGINS can call it
+# without an API key, so no secret ever ships in the public site's JavaScript.
+# Per-key/IP rate limits still apply.
+
+services:
+  - type: web
+    name: asad-downloader-api
+    runtime: node
+    repo: https://github.com/fabwaseem/social-media-video-downloader-api
+    branch: main
+    buildCommand: >-
+      corepack enable &&
+      pnpm install --frozen-lockfile &&
+      pnpm build &&
+      pnpm prisma:deploy
+    startCommand: npm run start:prod
+    healthCheckPath: /v2/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # paste the Supabase "Session pooler" connection string
+      - key: ALLOWED_ORIGINS
+        value: https://asadkharal91.github.io
+      - key: FILE_TTL_MINUTES
+        value: "720" # keep finished files 12h (disk is ephemeral on free tier)
+      - key: MAX_CONCURRENT_JOBS
+        value: "2" # stay light on the free tier
