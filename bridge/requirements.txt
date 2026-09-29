@@ -1,0 +1,2 @@
+# Asad Downloader Bridge dependencies
+yt-dlp>=2024.1.1
