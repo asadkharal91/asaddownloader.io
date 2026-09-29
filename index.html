@@ -13,7 +13,7 @@
 <header class="nav">
   <a class="brand" href="#" data-nav="home">
     <span class="brand-mark" aria-hidden="true">
-      <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#00e676"/><path d="M16 7v11m0 0l-5-5m5 5l5-5M8 22h16v3H8z" stroke="#071007" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#3b82f6"/><path d="M16 7v11m0 0l-5-5m5 5l5-5M8 22h16v3H8z" stroke="#030712" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </span>
     <span class="brand-text">ASAD <em>DOWNLOADER</em></span>
   </a>
@@ -39,29 +39,83 @@
 <main>
 <!-- ============================ HOME ============================ -->
 <section class="view active" id="view-home">
-  <div class="hero">
+  <div class="hero premium-hero">
+    <div class="hero-grid"></div>
+    <div class="hero-noise"></div>
+    <div class="hero-glow hero-glow-a"></div>
+    <div class="hero-glow hero-glow-b"></div>
+
     <div class="hero-inner">
-      <span class="badge">100% free &nbsp;·&nbsp; no accounts &nbsp;·&nbsp; no uploads</span>
-      <h1>Download videos<br>with <span class="grad">your own PC.</span></h1>
-      <p class="lede">Asad Downloader is a website downloader with a twist: the site is just the
-        remote control. A tiny engine on <strong>your</strong> computer does the downloading —
-        so your files, your bandwidth and your privacy stay yours.</p>
-      <div class="hero-cta">
-        <a href="#" class="btn btn-primary" data-nav="downloader">Open Downloader</a>
-        <a href="#" class="btn btn-ghost" id="heroEngineBtn">Download Local Engine</a>
+      <div class="hero-copy">
+        <span class="badge hero-badge"><span class="badge-dot"></span> PRIVATE DOWNLOAD WORKSPACE</span>
+        <h1>Download anything.<br><span class="grad">Own the result.</span></h1>
+        <p class="lede">A fast, polished downloader interface built around your device. Paste multiple links, choose your quality and manage every job from one clean queue.</p>
+
+        <div class="hero-cta">
+          <a href="#" class="btn btn-primary btn-xl" data-nav="downloader">Start Downloading <span class="btn-arrow">→</span></a>
+          <a href="#features" class="btn btn-ghost btn-xl" data-scroll="features">See Features</a>
+        </div>
+
+        <div class="hero-points">
+          <span><i>✓</i> Multi-link queue</span>
+          <span><i>✓</i> Live progress</span>
+          <span><i>✓</i> Local-first</span>
+        </div>
+
+        <div class="hero-status card">
+          <span class="status-pill is-off" id="heroStatus"><span class="dot"></span><span class="lbl">Checking…</span></span>
+          <span class="hero-status-hint" id="heroStatusHint">Checking this device for the Asad Downloader engine.</span>
+        </div>
       </div>
-      <div class="hero-status card">
-        <span class="status-pill is-off" id="heroStatus"><span class="dot"></span><span class="lbl">Checking local engine…</span></span>
-        <span class="hero-status-hint" id="heroStatusHint">The site is checking whether the Asad Downloader engine is running on this computer.</span>
+
+      <div class="hero-visual" aria-label="Downloader dashboard preview">
+        <div class="preview-window">
+          <div class="preview-topbar">
+            <span class="window-dots"><i></i><i></i><i></i></span>
+            <span class="preview-url">asad.downloader / workspace</span>
+            <span class="preview-live"><b></b> LIVE</span>
+          </div>
+          <div class="preview-body">
+            <div class="preview-heading">
+              <div>
+                <small>DOWNLOAD QUEUE</small>
+                <strong>4 active jobs</strong>
+              </div>
+              <span class="preview-icon">↧</span>
+            </div>
+            <div class="preview-item">
+              <div class="preview-file-icon">MP4</div>
+              <div class="preview-file-copy"><strong>creator-video-01.mp4</strong><span>1080p • 84 MB</span><div class="preview-bar"><i style="width:82%"></i></div></div>
+              <b class="preview-percent">82%</b>
+            </div>
+            <div class="preview-item">
+              <div class="preview-file-icon">MP4</div>
+              <div class="preview-file-copy"><strong>travel-short-02.mp4</strong><span>720p • 42 MB</span><div class="preview-bar"><i style="width:57%"></i></div></div>
+              <b class="preview-percent">57%</b>
+            </div>
+            <div class="preview-item">
+              <div class="preview-file-icon">MP3</div>
+              <div class="preview-file-copy"><strong>music-audio-03.mp3</strong><span>Audio • 9 MB</span><div class="preview-bar"><i style="width:31%"></i></div></div>
+              <b class="preview-percent">31%</b>
+            </div>
+            <div class="preview-summary">
+              <span><b>2.8 MB/s</b> avg speed</span>
+              <span><b>03:42</b> remaining</span>
+              <span class="preview-secure">● Local</span>
+            </div>
+          </div>
+        </div>
+        <div class="float-card float-card-a"><span class="float-icon">01</span><div><strong>Batch ready</strong><small>12 links queued</small></div></div>
+        <div class="float-card float-card-b"><span class="float-icon">✓</span><div><strong>Completed</strong><small>Saved to your device</small></div></div>
       </div>
     </div>
   </div>
 
-  <div class="strip">
-    <div class="strip-item"><strong>Local-first</strong><span>Videos never leave your device</span></div>
-    <div class="strip-item"><strong>Multi-download</strong><span>Queue up to 100 links at once</span></div>
-    <div class="strip-item"><strong>Live progress</strong><span>Speed, ETA and status per video</span></div>
-    <div class="strip-item"><strong>Free forever</strong><span>Static site + your PC. No server bills.</span></div>
+  <div class="strip premium-strip">
+    <div class="strip-item"><span class="strip-icon">01</span><div><strong>Bulk queue</strong><span>Up to 100 links per batch</span></div></div>
+    <div class="strip-item"><span class="strip-icon">02</span><div><strong>Live control</strong><span>Progress, speed and ETA</span></div></div>
+    <div class="strip-item"><span class="strip-icon">03</span><div><strong>Private</strong><span>Your files stay on your device</span></div></div>
+    <div class="strip-item"><span class="strip-icon">04</span><div><strong>No cloud storage</strong><span>No central video archive</span></div></div>
   </div>
 
   <div class="section" id="features">
@@ -245,7 +299,7 @@
     <div class="card about-card">
       <div class="about-brand">
         <span class="brand-mark lg" aria-hidden="true">
-          <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#00e676"/><path d="M16 7v11m0 0l-5-5m5 5l5-5M8 22h16v3H8z" stroke="#071007" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#3b82f6"/><path d="M16 7v11m0 0l-5-5m5 5l5-5M8 22h16v3H8z" stroke="#030712" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </span>
         <div><h3>ASAD DOWNLOADER</h3><p class="muted">Created by Asad Raza</p></div>
         <span class="ver">v1.0.0</span>
