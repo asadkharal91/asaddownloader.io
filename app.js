@@ -417,3 +417,122 @@ renderConnection();
 checkHealth();
 setInterval(checkHealth, HEALTH_MS);
 setInterval(refreshJobs, JOBS_MS);
+
+/* ---------------- optional zero-install online mode ----------------
+   Set window.ASAD_ONLINE_API_BASE in online-config.js to enable.
+   The existing local bridge mode remains available when blank.
+-------------------------------------------------------------------- */
+const ONLINE_API_BASE = String(window.ASAD_ONLINE_API_BASE || "").replace(/\\/$/, "");
+const USE_ONLINE_MODE = !!ONLINE_API_BASE;
+let onlineJobs = [];
+let onlineTimer = null;
+
+async function onlineApi(path, opts, timeoutMs) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs || 30000);
+  try {
+    const res = await fetch(ONLINE_API_BASE + path, Object.assign({signal:ctrl.signal}, opts || {}));
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(data.error || ("Request failed (" + res.status + ")")), {status:res.status,data});
+    return data;
+  } finally { clearTimeout(timer); }
+}
+
+function makeOnlineJob(url) {
+  return {
+    id:"web-" + Math.random().toString(16).slice(2) + Date.now().toString(16),
+    url, title:"Waiting…", status:"queued", progress:0, speed:"", eta:null,
+    downloaded_bytes:0, total_bytes:null, filename:"", error:"", error_detail:"",
+    created_at:Date.now()/1000, finished_at:null, attempt:1, has_file:false, downloadUrl:""
+  };
+}
+
+function onlineDownload(job) {
+  if (!job.downloadUrl) return;
+  const a=document.createElement("a");
+  a.href=job.downloadUrl;
+  a.download=job.filename || "";
+  a.target="_blank";
+  a.rel="noreferrer";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function processOnlineBatch(batch) {
+  batch.forEach(j => { j.status="downloading"; j.title="Resolving…"; });
+  jobsCache = onlineJobs;
+  renderJobs();
+  try {
+    const data=await onlineApi("/api/resolve-batch",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        urls:batch.map(j=>j.url),
+        mode:$("optMode").value,
+        quality:$("optQuality").value==="1080p" ? "1080" : $("optQuality").value==="720p" ? "720" : $("optQuality").value==="480p" ? "480" : "best"
+      })
+    });
+    const byUrl=new Map((data.results||[]).map(r=>[r.url,r]));
+    batch.forEach(j=>{
+      const r=byUrl.get(j.url);
+      if(!r || !r.ok){
+        j.status="failed"; j.error=r?.error || "Could not resolve this URL."; j.error_detail=r?.retryAfter ? ("Retry after "+r.retryAfter+" seconds.") : "";
+        j.finished_at=Date.now()/1000; return;
+      }
+      j.status="completed"; j.title=r.title || j.url; j.filename=r.filename || "download";
+      j.downloadUrl=r.downloadUrl; j.has_file=true; j.progress=100; j.finished_at=Date.now()/1000;
+      j.error=""; j.error_detail="";
+    });
+    jobsCache=onlineJobs; renderJobs();
+    // Attempt direct browser delivery. The browser may require permission for multiple downloads.
+    for (const job of batch){
+      if(job.status==="completed" && job.downloadUrl){
+        await new Promise(resolve=>setTimeout(resolve,250));
+        onlineDownload(job);
+      }
+    }
+  } catch(err) {
+    batch.forEach(j=>{ j.status="failed"; j.error=err.message || "Online resolver failed."; j.error_detail=err.status===429 ? "Please wait before retrying." : ""; j.finished_at=Date.now()/1000; });
+    jobsCache=onlineJobs; renderJobs();
+  }
+}
+
+async function onlineQueueRunner(){
+  if(!USE_ONLINE_MODE || onlineTimer) return;
+  const pending=onlineJobs.filter(j=>j.status==="queued");
+  if(!pending.length) return;
+  await processOnlineBatch(pending.slice(0,10));
+  if(onlineJobs.some(j=>j.status==="queued")){
+    onlineTimer=setTimeout(()=>{onlineTimer=null;onlineQueueRunner();},61000);
+  }
+}
+
+function installOnlineMode(){
+  const panel=$("onlineModePanel"); if(panel) panel.hidden=false;
+  connected=true; healthInfo={online:true};
+  renderConnection();
+  $("heroStatusHint").textContent="Online mode is ready. No desktop engine is required.";
+  $("submitHint").textContent="Online mode: no Python or FFmpeg installation is required. Free provider quotas apply.";
+  const of=$("openFolderBtn"); if(of) of.hidden=true;
+  ["setWorkers","setDir","setTemplate","setOrganize","setRetries","setRetryDelay","setCookies","setBrowser"].forEach(id=>{
+    const el=$(id); const p=el?.closest("label"); if(p)p.hidden=true;
+  });
+  const sb=$("saveSettingsBtn"); if(sb) sb.hidden=true;
+  const wi=$("workersWarn"); if(wi) wi.hidden=true;
+
+  const btn=$("startBtn");
+  const fresh=btn.cloneNode(true); btn.replaceWith(fresh);
+  fresh.addEventListener("click",()=>{
+    const urls=$("urlBox").value.split("\\n").map(s=>s.trim()).filter(Boolean);
+    if(!urls.length){toast("Paste at least one URL first.",true);return;}
+    if(urls.length>100){toast("Maximum 100 URLs per submission.",true);return;}
+    urls.forEach(u=>onlineJobs.push(makeOnlineJob(u)));
+    $("urlBox").value="";
+    jobsCache=onlineJobs; renderJobs();
+    document.querySelector(".tab[data-tab=queue]").click();
+    onlineQueueRunner();
+  });
+}
+
+window.addEventListener("load",()=>{if(USE_ONLINE_MODE)installOnlineMode();},{once:true});
