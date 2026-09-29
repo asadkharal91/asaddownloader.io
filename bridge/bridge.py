@@ -484,6 +484,11 @@ def _run_job_with_retries(job_id: str):
                 job["status"] = "retrying"
         try:
             _download_once(job_id)
+            # A cancel may have landed during post-processing (no progress
+            # hook calls there); honor it instead of reporting completed.
+            ev = cancel_events.get(job_id)
+            if ev is not None and ev.is_set():
+                raise CancelledError("cancelled by user")
             _finish_job(job_id, "completed")
             return
         except CancelledError:
@@ -605,6 +610,11 @@ def _finish_job(job_id: str, status: str, short="", detail=""):
     with jobs_lock:
         job = jobs.get(job_id)
         if not job:
+            return
+        if job["status"] in TERMINAL_STATES and job.get("finished_at"):
+            # Already finalized (e.g. the user cancelled while the worker
+            # thread was still finishing). A terminal job must never be
+            # revived or flipped to another state.
             return
         # Never report success without a real file on disk.
         if status == "completed":
@@ -826,10 +836,6 @@ class BridgeHandler(BaseHTTPRequestHandler):
             ev = cancel_events.get(job_id)
             if ev:
                 ev.set()
-            with jobs_lock:
-                job["status"] = "cancelled"
-                job["finished_at"] = time.time()
-                job["error"] = "Cancelled"
             _finish_job(job_id, "cancelled", short="Cancelled",
                         detail="Cancelled by user.")
             self._json({"job": job_public(jobs[job_id])})
