@@ -1,0 +1,10 @@
+# Local runtime files — never commit these
+bridge/config.json
+bridge/history.json
+bridge/bridge.log
+bridge/downloads/
+bridge/dist/
+bridge/build/
+bridge/__pycache__/
+bridge/*.spec
+*.pyc
