@@ -635,8 +635,13 @@ function renderSingleProgress() {
       $("singleResult").innerHTML = ""; $("singleUrl").value = ""; $("singleUrl").focus();
     });
   } else if (j.status === "failed" || j.status === "cancelled") {
-    box.innerHTML = '<div class="job-err"><summary>' + esc(j.error || j.status) + "</summary></div>";
+    box.innerHTML = '<details class="job-err" open><summary>' + esc(j.error || j.status) + "</summary>" +
+      (j.error_detail ? "<p>" + esc(j.error_detail) + "</p>" : "") +
+      '<div class="row gap" style="margin-top:8px"><button class="link-btn" id="singleAgain">Try another link</button></div></details>';
     singleJobId = null;
+    $("singleAgain").addEventListener("click", () => {
+      $("singleResult").innerHTML = ""; $("singleUrl").value = ""; $("singleUrl").focus();
+    });
   } else {
     box.innerHTML = '<div class="pbar"><i style="width:' + pct.toFixed(1) + '%"></i></div>' +
       '<div class="job-meta"><span><b>' + pct.toFixed(0) + "%</b></span>" +
@@ -1045,7 +1050,8 @@ function renderBulkBridge() {
     }
     const bar = TERMINAL.includes(j.status) ? "" :
       '<div class="pbar"><i style="width:' + pct.toFixed(1) + '%"></i></div>';
-    const err = j.error ? '<div class="job-err"><summary>' + esc(j.error) + "</summary></div>" : "";
+    const err = j.error ? '<details class="job-err"><summary>' + esc(j.error) + "</summary>" +
+      (j.error_detail ? "<p>" + esc(j.error_detail) + "</p>" : "") + "</details>" : "";
     return '<div class="qrow"><div class="job-top"><div><div class="job-title">' +
       esc(j.title || shortUrl(j.url)) + '</div><div class="job-url">' + esc(shortUrl(j.url)) +
       '</div></div><div class="job-actions">' + actions + "</div></div>" + bar + err + "</div>";
