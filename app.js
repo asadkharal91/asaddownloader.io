@@ -33,6 +33,9 @@ let jobsCache = [];
 let healthInfo = null;
 let settingsLoaded = false;
 let pending = [];            // staged URLs not yet sent to the bridge
+let bridgeDir = "";          // resolved download folder on the user's PC (from /api/config)
+let bulkJobIds = [];         // job ids started from the hero Bulk tab
+let bulkOnline = null;       // offline bulk state: { items:[...], stop:false }
 let smartMode = true;
 try { smartMode = localStorage.getItem("ad-smart") !== "0"; } catch (e) {}
 
@@ -95,6 +98,15 @@ function fmtEta(sec) {
 function fmtDate(ts) {
   if (!ts) return "—";
   try { return new Date(ts * 1000).toLocaleString(); } catch (e) { return "—"; }
+}
+
+/* Shorten an absolute bridge download path to the part the user recognizes,
+   e.g. "C:\Users\Asad\Downloads\Asad Downloader" -> "Downloads\Asad Downloader". */
+function friendlyDir() {
+  let p = String(bridgeDir || "").replace(/\//g, "\\").replace(/\\+$/g, "");
+  const i = p.toLowerCase().lastIndexOf("downloads\\");
+  if (i >= 0) p = p.slice(i);
+  return p || "your download folder";
 }
 
 /* ---------------- navigation ---------------- */
@@ -404,6 +416,7 @@ function renderAll() {
   $("stDone").textContent = c;
   $("stFailed").textContent = f;
   renderSingleProgress();
+  renderBulkBridge();
 }
 
 async function refreshJobs() {
@@ -449,6 +462,7 @@ async function loadSettings() {
     const d = await api("/api/config");
     const c = d.config || {};
     settingsLoaded = true;
+    bridgeDir = c.download_dir_resolved || c.download_dir || "";
     $("setMode").value = c.mode || "video";
     $("setQuality").value = c.quality || "best";
     $("setWorkers").value = c.workers || 3;
@@ -501,6 +515,7 @@ $("saveSettingsBtn").addEventListener("click", async () => {
     });
     $("settingsMsg").textContent = "Saved.";
     toast("Settings saved on your local engine.");
+    loadSettings(); // refresh resolved download dir etc.
     setTimeout(() => { $("settingsMsg").textContent = ""; }, 2500);
   } catch (e) {
     $("settingsMsg").textContent = "";
@@ -608,8 +623,10 @@ function renderSingleProgress() {
   if (!j) return;
   const pct = Math.max(0, Math.min(100, Number(j.progress) || 0));
   if (j.status === "completed" && j.has_file) {
-    box.innerHTML = '<div class="job-meta"><span>Saved to your PC' +
-      (j.filename ? ": <b>" + esc(j.filename) + "</b>" : "") + "</span></div>" +
+    const where = bridgeDir ? esc(friendlyDir()) + "\\" : "";
+    box.innerHTML = '<div class="job-meta"><span>Saved to your PC: <b>' + where + esc(j.filename || "video") + "</b></span></div>" +
+      '<div class="fine">It is in the <b>' + (bridgeDir ? esc(friendlyDir()) : "download") + '</b> folder' +
+      ' — click <b>Open Folder</b> to see it right away.</div>' +
       '<div class="row gap" style="margin-top:8px"><a class="mini-btn" href="' + BRIDGE_BASE + "/api/jobs/" + esc(j.id) + '/file">Get File</a>' +
       '<button class="mini-btn" data-openfolder="1">Open Folder</button> ' +
       '<button class="link-btn" id="singleAgain">Download another</button></div>';
@@ -947,6 +964,203 @@ async function startSaveApiJob(qb, q) {
     prog.innerHTML = '<div class="job-err"><summary>Could not start: ' + esc(err.message) + "</summary></div>";
     qb.disabled = false;
   }
+}
+
+/* ---------------- bulk hero tab ---------------- */
+function setHeroTab(which) {
+  const single = which === "single";
+  $("tabSingle").classList.toggle("active", single);
+  $("tabSingle").setAttribute("aria-selected", single ? "true" : "false");
+  $("tabBulk").classList.toggle("active", !single);
+  $("tabBulk").setAttribute("aria-selected", single ? "false" : "true");
+  $("paneSingle").hidden = !single;
+  $("paneBulk").hidden = single;
+}
+$("tabSingle").addEventListener("click", () => setHeroTab("single"));
+$("tabBulk").addEventListener("click", () => setHeroTab("bulk"));
+
+function parseBulkUrls(text) {
+  const seen = new Set();
+  return String(text || "").split("\n").map((s) => s.trim())
+    .filter((s) => /^https?:\/\//i.test(s))
+    .filter((s) => { if (seen.has(s)) return false; seen.add(s); return true; });
+}
+
+$("bulkGo").addEventListener("click", () => {
+  const urls = parseBulkUrls($("bulkBox").value);
+  if (!urls.length) { toast("Paste at least one video link first.", true); return; }
+  if (urls.length > 100) { toast("Bulk is limited to 100 links at a time.", true); return; }
+  if (connected) startBulkBridge(urls);
+  else startBulkOnline(urls);
+});
+
+$("bulkStop").addEventListener("click", () => {
+  if (bulkOnline) { bulkOnline.stop = true; toast("Stopping after the current link…"); }
+});
+
+async function startBulkBridge(urls) {
+  const q = $("bulkQuality").value;
+  bulkOnline = null;
+  $("bulkStop").hidden = true;
+  $("bulkMsg").textContent = "Starting " + urls.length + " download(s) on your local engine…";
+  try {
+    const data = await api("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        urls: urls,
+        options: q === "audio" ? { mode: "audio", quality: "best" } : { mode: "video", quality: q },
+      }),
+    });
+    bulkJobIds = (data.jobs || []).map((j) => j.id);
+    $("bulkBox").value = "";
+    $("bulkMsg").textContent = "";
+    toast(bulkJobIds.length + " download(s) started on your local engine.");
+    refreshJobs();
+  } catch (e) {
+    $("bulkMsg").textContent = "";
+    toast("Could not start downloads: " + e.message, true);
+  }
+}
+
+function renderBulkBridge() {
+  const box = $("bulkResult");
+  if (!box || !bulkJobIds.length) return;
+  const map = new Map(jobsCache.map((j) => [j.id, j]));
+  let done = 0, failed = 0, active = 0;
+  const rows = bulkJobIds.map((id) => {
+    const j = map.get(id);
+    if (!j) return "";
+    const pct = Math.max(0, Math.min(100, Number(j.progress) || 0));
+    if (j.status === "completed") done++;
+    else if (j.status === "failed" || j.status === "cancelled") failed++;
+    else active++;
+    let actions = statusChip(j.status);
+    if (!TERMINAL.includes(j.status)) {
+      actions += ' <button class="mini-btn danger" data-cancel="' + esc(j.id) + '">Cancel</button>';
+    } else {
+      if (j.status === "completed" && j.has_file)
+        actions += ' <a class="mini-btn" href="' + BRIDGE_BASE + "/api/jobs/" + esc(j.id) + '/file">Get File</a>';
+      actions += ' <button class="mini-btn" data-openfolder="1">Open Folder</button>';
+    }
+    const bar = TERMINAL.includes(j.status) ? "" :
+      '<div class="pbar"><i style="width:' + pct.toFixed(1) + '%"></i></div>';
+    const err = j.error ? '<div class="job-err"><summary>' + esc(j.error) + "</summary></div>" : "";
+    return '<div class="qrow"><div class="job-top"><div><div class="job-title">' +
+      esc(j.title || shortUrl(j.url)) + '</div><div class="job-url">' + esc(shortUrl(j.url)) +
+      '</div></div><div class="job-actions">' + actions + "</div></div>" + bar + err + "</div>";
+  }).join("");
+  const total = bulkJobIds.length;
+  box.innerHTML = '<div class="fine">' +
+    (active ? "<b>" + active + "</b> running · " : "") +
+    "Completed <b>" + done + "</b> / " + total +
+    (failed ? ' · <b>' + failed + "</b> failed" : "") +
+    (bridgeDir ? ' · saving to <b>' + esc(friendlyDir()) + "</b>" : "") +
+    '</div><div class="bulk-list">' + rows + "</div>";
+}
+
+/* Offline bulk: SaveAPI, one link at a time, with a cost estimate up front.
+   Never spends a credit without the user pressing Start. */
+function startBulkOnline(urls) {
+  bulkJobIds = [];
+  if (!SAVEAPI_KEYS.length) {
+    $("bulkMsg").textContent = "";
+    $("bulkResult").innerHTML = '<div class="bulk-confirm"><b>Bulk download needs the local engine.</b>' +
+      '<div class="fine">The engine is the free program that runs on your PC — ' +
+      "it downloads every link without spending credits.</div>" +
+      '<div class="row gap" style="margin-top:10px"><a href="#" class="btn primary engine-dl">Download Local Engine</a></div></div>';
+    wireEngineDls();
+    return;
+  }
+  const yt = urls.filter(saIsYouTubeUrl).length;
+  const other = urls.length - yt;
+  const est = Math.round((yt * 12 + other * 1.5) * 10) / 10;
+  bulkOnline = { items: urls.map((u) => ({ url: u, status: "waiting" })), stop: false, running: false, confirmed: false };
+  $("bulkMsg").innerHTML = "";
+  $("bulkResult").innerHTML = '<div class="bulk-confirm"><b>' + urls.length +
+    ' link(s) via online download</b><div class="fine">This will use about <b>' + est +
+    " credits</b> from your SaveAPI balance (" + yt + " YouTube × ~12, " + other +
+    " other × ~1.5). No credits are spent until you press Start.</div>" +
+    '<div class="row gap" style="margin-top:10px"><button class="btn btn-primary" id="bulkOnlineStart">Start Bulk (~' +
+    est + ' credits)</button></div></div>';
+  $("bulkOnlineStart").addEventListener("click", runBulkOnline);
+}
+
+function renderBulkOnline() {
+  const box = $("bulkResult");
+  const st = bulkOnline;
+  if (!box || !st) return;
+  let done = 0, failed = 0;
+  const rows = st.items.map((it) => {
+    let right;
+    if (it.status === "waiting") right = statusChip("queued");
+    else if (it.status === "working") right = '<span class="chip downloading">Working…</span>';
+    else if (it.status === "done") {
+      done++;
+      right = '<a class="mini-btn" href="' + esc(it.fileUrl) + '" target="_blank" rel="noopener">Get File</a>';
+    } else { failed++; right = '<span class="chip failed">Failed</span>'; }
+    const sub = it.title ? '<div class="job-url">' + esc(it.title) + "</div>"
+      : it.error ? '<div class="job-url">' + esc(it.error) + "</div>" : "";
+    return '<div class="qrow"><div class="job-top"><div><div class="job-title">' + esc(shortUrl(it.url)) +
+      "</div>" + sub + '</div><div class="job-actions">' + right + "</div></div></div>";
+  }).join("");
+  const total = st.items.length;
+  box.innerHTML = '<div class="fine">Completed <b>' + done + "</b> / " + total +
+    (failed ? ' · <b>' + failed + "</b> failed" : "") +
+    ' · via SaveAPI (paid credits)</div><div class="bulk-list">' + rows + "</div>";
+}
+
+/* One SaveAPI link for the offline bulk run. Saves/restores the single-link
+   globals it borrows (saData/saYouTube) so the single tab is unaffected. */
+async function saveApiBulkLink(url, q) {
+  const prevData = saData, prevYt = saYouTube;
+  try {
+    const yt = saIsYouTubeUrl(url);
+    saYouTube = yt;
+    if (yt) {
+      saData = await saFetch("/v1/youtube/info?url=" + encodeURIComponent(url), 30000);
+      const pick = saPick(q);
+      if (!pick || !pick.qid) throw new Error("No downloadable format found.");
+      const res = await saFetch("/v1/youtube/create?url=" + encodeURIComponent(url) +
+        "&quality=" + encodeURIComponent(pick.qid), 90000);
+      const fileUrl = res.url || res.download_url || res.downloadUrl || res.link;
+      if (!fileUrl) throw new Error("SaveAPI didn't return a download link.");
+      return { title: res.title || saData.title || url, fileUrl: fileUrl };
+    }
+    saData = await saFetch("/v1/download?url=" + encodeURIComponent(url), 60000);
+    const pick = saPick(q);
+    if (!pick || !pick.url) throw new Error("No downloadable format found.");
+    const m = saData.meta || {};
+    return { title: m.title || url, fileUrl: pick.url };
+  } finally {
+    saData = prevData; saYouTube = prevYt;
+  }
+}
+
+async function runBulkOnline() {
+  const st = bulkOnline;
+  if (!st || st.running) return;
+  st.running = true; st.stop = false; st.confirmed = true;
+  $("bulkStop").hidden = false;
+  $("bulkMsg").textContent = "";
+  const q = $("bulkQuality").value;
+  for (const it of st.items) {
+    if (st.stop) { it.status = it.status === "waiting" ? "error" : it.status; if (it.status === "error" && !it.error) it.error = "Stopped."; continue; }
+    if (it.status !== "waiting") continue;
+    it.status = "working";
+    renderBulkOnline();
+    try {
+      const r = await saveApiBulkLink(it.url, q);
+      it.status = "done"; it.title = r.title; it.fileUrl = r.fileUrl;
+    } catch (e) {
+      it.status = "error"; it.error = e.message;
+    }
+    renderBulkOnline();
+  }
+  st.running = false;
+  $("bulkStop").hidden = true;
+  const done = st.items.filter((i) => i.status === "done").length;
+  $("bulkMsg").textContent = "Finished: " + done + " of " + st.items.length + " link(s) ready.";
 }
 
 /* ---------------- boot ---------------- */

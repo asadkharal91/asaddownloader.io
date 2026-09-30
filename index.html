@@ -45,12 +45,35 @@
       <h1>Download videos<br><span class="grad">free, online.</span></h1>
       <p class="lede">Paste a video link below, pick a quality, and save it straight to your own PC.</p>
       <div class="dl-box card">
-        <div class="dl-row">
-          <input id="singleUrl" type="url" placeholder="Paste a video URL here…" autocomplete="off" spellcheck="false">
-          <button id="singleGo" class="btn btn-primary">Download</button>
+        <div class="dl-tabs" role="tablist" aria-label="Download mode">
+          <button class="dl-tab active" id="tabSingle" role="tab" aria-selected="true">Single link</button>
+          <button class="dl-tab" id="tabBulk" role="tab" aria-selected="false">Bulk links</button>
         </div>
-        <div id="singleMsg" class="fine" aria-live="polite"></div>
-        <div id="singleResult"></div>
+        <div id="paneSingle" role="tabpanel">
+          <div class="dl-row">
+            <input id="singleUrl" type="url" placeholder="Paste a video URL here…" autocomplete="off" spellcheck="false">
+            <button id="singleGo" class="btn btn-primary">Download</button>
+          </div>
+          <div id="singleMsg" class="fine" aria-live="polite"></div>
+          <div id="singleResult"></div>
+        </div>
+        <div id="paneBulk" role="tabpanel" hidden>
+          <textarea id="bulkBox" rows="4" placeholder="Paste video links here — one per line…"></textarea>
+          <div class="dl-row bulk-controls">
+            <select id="bulkQuality" class="bulk-quality" aria-label="Quality for all links">
+              <option value="2160p">4K</option>
+              <option value="1080p" selected>1080p</option>
+              <option value="720p">720p</option>
+              <option value="480p">480p</option>
+              <option value="360p">360p</option>
+              <option value="audio">MP3</option>
+            </select>
+            <button id="bulkGo" class="btn btn-primary">Download All</button>
+            <button id="bulkStop" class="btn ghost" hidden>Stop</button>
+          </div>
+          <div id="bulkMsg" class="fine" aria-live="polite"></div>
+          <div id="bulkResult"></div>
+        </div>
       </div>
       <div class="sites"><span>YouTube</span><span>TikTok</span><span>Facebook</span><span>Instagram</span><span>X</span><span>+1000 more sites</span></div>
       <div class="hero-status card">

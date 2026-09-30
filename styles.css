@@ -400,3 +400,19 @@ footer strong { color: var(--green-bright); letter-spacing: 1px; }
 .qbtn.mp3{border-color:rgba(0,229,114,.4);color:var(--green)}
 .vc-progress{margin-top:12px}
 @media(max-width:560px){.video-card{flex-direction:column}.video-card img{width:100%;height:auto}.dl-row{flex-direction:column}}
+
+/* ============ Hero bulk tab ============ */
+.dl-tabs{display:flex;gap:8px;margin-bottom:14px}
+.dl-tab{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:7px 18px;font-size:13px;cursor:pointer}
+.dl-tab:hover{color:var(--text);border-color:var(--green)}
+.dl-tab.active{background:var(--green);border-color:var(--green);color:#04120a;font-weight:700}
+#bulkBox{width:100%;box-sizing:border-box;background:#0d1117;border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;resize:vertical;min-height:96px;font-family:inherit}
+#bulkBox:focus{outline:none;border-color:var(--green)}
+.bulk-controls{margin-top:10px}
+.bulk-controls .btn-primary{flex:1}
+.bulk-quality{background:#0d1117;border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--text);font-size:14px;cursor:pointer}
+#bulkMsg{margin-top:10px;min-height:18px}
+#bulkResult{margin-top:4px}
+.bulk-list{display:flex;flex-direction:column;gap:8px;margin-top:10px;max-height:340px;overflow-y:auto}
+.bulk-list .qrow{margin:0}
+.bulk-confirm{background:#0d1117;border:1px solid var(--line);border-radius:12px;padding:16px;margin-top:12px}
